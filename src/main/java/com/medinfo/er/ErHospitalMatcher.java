@@ -16,13 +16,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * 응급기관(hpid, 국립중앙의료원) ↔ 심평원 병원(ykiho) 자동 매칭. 두 기관이 다른 ID를 써서 위치와 이름으로 짝을 짓는다.
  * 이름은 norm_hosp_name()으로 법인명·괄호·공백·"부속"을 뗀 뒤 비교한다.
  *
+ * 0단계 manual: er_manual_match 목록(저장소의 R__er_manual_match.sql)대로 지정. 사람이 정한 것이 항상 우선
  * 3단계 (앞 단계에서 못 찾은 것만 다음 단계로)
  *  1) auto      : 반경 300m 안, 이름 유사도(pg_trgm) 0.5 이상 중 최고
  *  2) auto_far  : 반경 2km 안, 정리된 이름이 완전히 같은 병원 중 가장 가까운 곳
  *                 (두 기관의 좌표 기준점이 달라 같은 병원이 360~1,500m 떨어진 경우)
  *  3) auto_cont : 반경 100m 안, 한쪽 이름이 다른 쪽을 포함 (짧은 쪽 3글자 이상)
  *                 (벌교삼호병원 ↔ 삼호병원, 순천한국병원 ↔ 한국병원처럼 지역명 유무만 다른 경우)
- *  - manual 은 사람이 지정한 것이라 절대 덮어쓰지 않는다
+ *  - 매번 전체를 초기화하고 다시 계산한다. 수동 지정의 원본은 DB가 아니라 er_manual_match 목록
+ *  - 정리된 이름이 빈 문자열이면 어느 단계에서도 매칭하지 않는다 (빈 이름끼리 "완전일치" 방지)
  *
  * 근거 (2026-10-21 실데이터 530곳): 1단계만으로 516곳, 전부 유사도 1.0. 미매칭 14곳 중
  * 9곳은 이름 완전일치 + 거리 360~1,507m, 3곳은 이름 표기 차이(거리 3~57m), 2곳은 후보 없음(수동 지정 대상).
@@ -34,10 +36,28 @@ public class ErHospitalMatcher {
 
     private static final Logger log = LoggerFactory.getLogger(ErHospitalMatcher.class);
 
-    private static final String RESET_AUTO_SQL = """
+    private static final String RESET_SQL = """
             UPDATE er_hospital
                SET hospital_id = NULL, match_method = NULL, match_score = NULL
-             WHERE match_method LIKE 'auto%'
+             WHERE match_method IS NOT NULL
+            """;
+
+    /** 0단계: 수동 목록 */
+    private static final String MANUAL_SQL = """
+            UPDATE er_hospital e
+               SET hospital_id = h.id, match_method = 'manual', match_score = NULL
+              FROM er_manual_match m
+              JOIN hospital h ON h.ykiho = m.ykiho
+             WHERE e.hpid = m.hpid
+            """;
+
+    /** 수동 목록인데 병원(ykiho)이나 응급기관(hpid)을 못 찾은 항목 → 오타·폐업 확인용 */
+    private static final String MANUAL_BROKEN_SQL = """
+            SELECT m.hpid || ' → ' || m.ykiho
+              FROM er_manual_match m
+              LEFT JOIN er_hospital e ON e.hpid = m.hpid
+              LEFT JOIN hospital h ON h.ykiho = m.ykiho
+             WHERE e.hpid IS NULL OR h.id IS NULL
             """;
 
     /** 1단계: 가까운 반경 + 이름 유사도 */
@@ -58,6 +78,7 @@ public class ErHospitalMatcher {
                       ) c
                      WHERE e2.location IS NOT NULL
                        AND e2.match_method IS NULL
+                       AND norm_hosp_name(e2.name) <> ''
                    ) m
              WHERE e.hpid = m.hpid
                AND m.score >= ?
@@ -81,6 +102,7 @@ public class ErHospitalMatcher {
                       ) c
                      WHERE e2.location IS NOT NULL
                        AND e2.match_method IS NULL
+                       AND norm_hosp_name(e2.name) <> ''
                    ) m
              WHERE e.hpid = m.hpid
             """;
@@ -106,6 +128,7 @@ public class ErHospitalMatcher {
                       ) c
                      WHERE e2.location IS NOT NULL
                        AND e2.match_method IS NULL
+                       AND norm_hosp_name(e2.name) <> ''
                    ) m
              WHERE e.hpid = m.hpid
             """;
@@ -130,25 +153,28 @@ public class ErHospitalMatcher {
 
     @Transactional
     public int match() {
-        jdbcTemplate.update(RESET_AUTO_SQL);
+        jdbcTemplate.update(RESET_SQL);
+        int s0 = jdbcTemplate.update(MANUAL_SQL);
+        List<String> broken = jdbcTemplate.queryForList(MANUAL_BROKEN_SQL, String.class);
+        if (!broken.isEmpty()) {
+            log.warn("수동 매칭 목록 중 적용 못 한 항목 (hpid 또는 ykiho 확인): {}", broken);
+        }
         int s1 = jdbcTemplate.update(STAGE1_SQL, rules.radiusMeters(), rules.minSimilarity());
         int s2 = jdbcTemplate.update(STAGE2_SQL, rules.exactNameRadius());
         int s3 = jdbcTemplate.update(STAGE3_SQL, rules.containsRadius());
 
         Long total = jdbcTemplate.queryForObject("SELECT count(*) FROM er_hospital", Long.class);
-        Long manual = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM er_hospital WHERE match_method = 'manual'", Long.class);
         Long none = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM er_hospital WHERE hospital_id IS NULL", Long.class);
         unmatched.set(none == null ? 0 : none);
 
         log.info("응급기관 매칭: 1단계 {} · 2단계(이름 일치, 2km) {} · 3단계(이름 포함, 100m) {} · 수동 {} · 미매칭 {} / 전체 {}",
-                s1, s2, s3, manual, unmatched.get(), total);
+                s1, s2, s3, s0, unmatched.get(), total);
         if (unmatched.get() > 0) {
             List<String> names = jdbcTemplate.queryForList(UNMATCHED_SQL, String.class);
             log.info("미매칭 응급기관(최대 30곳, 수동 지정 검토용): {}", names);
         }
-        return s1 + s2 + s3;
+        return s0 + s1 + s2 + s3;
     }
 
     record MatchRules(double radiusMeters, double minSimilarity, double exactNameRadius, double containsRadius) {
