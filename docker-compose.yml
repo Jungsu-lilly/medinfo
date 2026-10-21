@@ -1,0 +1,22 @@
+# 로컬 개발용. 비밀번호는 로컬 전용 값이라 그대로 둬도 됨 (운영은 RDS + Secrets)
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: medinfo-postgres
+    environment:
+      POSTGRES_DB: medinfo
+      POSTGRES_USER: medinfo
+      POSTGRES_PASSWORD: medinfo-local
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medinfo -d medinfo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

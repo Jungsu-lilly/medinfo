@@ -1,0 +1,26 @@
+<response>
+<header>
+<resultCode>00</resultCode>
+<resultMsg>NORMAL SERVICE.</resultMsg>
+</header>
+<body>
+<items>
+<item>
+<dutyAddr>울산광역시 남구 남산로354번길 26 (신정동)</dutyAddr>
+<dutyEmcls>G009</dutyEmcls>
+<dutyEmclsName>응급실운영신고기관</dutyEmclsName>
+<dutyName>(의)내경의료재단울산제일병원</dutyName>
+<dutyTel1>052-220-3300</dutyTel1>
+<dutyTel3>052-220-3300</dutyTel3>
+<hpid>A1700023</hpid>
+<phpid>A1700023</phpid>
+<rnum>1</rnum>
+<wgs84Lat>35.54823820112527</wgs84Lat>
+<wgs84Lon>129.30701143429678</wgs84Lon>
+</item>
+</items>
+<numOfRows>1</numOfRows>
+<pageNo>1</pageNo>
+<totalCount>530</totalCount>
+</body>
+</response>

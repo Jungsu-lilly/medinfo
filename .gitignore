@@ -1,0 +1,13 @@
+# 비밀값
+.env
+http/http-client.private.env.json
+
+# Gradle / IntelliJ
+.gradle/
+build/
+out/
+.idea/
+*.iml
+
+# OS
+.DS_Store

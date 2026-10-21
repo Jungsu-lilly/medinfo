@@ -1,0 +1,32 @@
+<response>
+<header>
+<resultCode>00</resultCode>
+<resultMsg>NORMAL SERVICE.</resultMsg>
+</header>
+<body>
+<items>
+<item>
+<addr>경기도 수원시 팔달구 중부대로 93, (지동)</addr>
+<clCd>01</clCd>
+<clCdNm>상급종합</clCdNm>
+<drTotCnt>360</drTotCnt>
+<emdongNm>지동</emdongNm>
+<estbDd>19670523</estbDd>
+<hospUrl>http://www.cmcvincent.or.kr/skip.html</hospUrl>
+<postNo>16247</postNo>
+<sgguCd>310603</sgguCd>
+<sgguCdNm>수원팔달구</sgguCdNm>
+<sidoCd>310000</sidoCd>
+<sidoCdNm>경기</sidoCdNm>
+<telno>031-1577-8588</telno>
+<XPos>127.0274271</XPos>
+<YPos>37.2779855</YPos>
+<yadmNm>가톨릭대학교 성빈센트병원</yadmNm>
+<ykiho>JDQ4MTYyMiM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ3OSQzNjEwMDIjODEjJDEjJDIjJDgz</ykiho>
+</item>
+</items>
+<numOfRows>1</numOfRows>
+<pageNo>1</pageNo>
+<totalCount>79878</totalCount>
+</body>
+</response>

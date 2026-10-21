@@ -1,0 +1,24 @@
+### IntelliJ HTTP Client로 공공데이터 API 직접 호출
+### 브라우저 주소창이 내부 주소로 바뀌는 문제 없이, 이 파일에서 ▶ 버튼으로 실행
+### 키는 http-client.private.env.json (git 제외)에 넣고, 실행 시 환경 "local" 선택
+
+### 1. 응급실 실시간 가용병상 (전국 1회)
+GET https://apis.data.go.kr/B552657/ErmctInfoInqireService/getEmrrmRltmUsefulSckbdInfoInqire?serviceKey={{serviceKey}}&pageNo=1&numOfRows=1000
+
+### 2. 응급의료기관 목록 (전국 530곳)
+GET https://apis.data.go.kr/B552657/ErmctInfoInqireService/getEgytListInfoInqire?serviceKey={{serviceKey}}&pageNo=1&numOfRows=1000
+
+### 3. 비급여 요약 (서울, 3건)
+GET https://apis.data.go.kr/B551182/nonPaymentDamtInfoService/getNonPaymentItemHospList2?serviceKey={{serviceKey}}&pageNo=1&numOfRows=3&sidoCd=110000
+
+### 4. 비급여 상세 (병원 1곳 — ykiho는 3번 응답에서 복사)
+GET https://apis.data.go.kr/B551182/nonPaymentDamtInfoService/getNonPaymentItemHospDtlList?serviceKey={{serviceKey}}&pageNo=1&numOfRows=3&ykiho=여기에_ykiho
+
+### 5. 병원 기본정보 (1건)
+GET https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList?serviceKey={{serviceKey}}&pageNo=1&numOfRows=1
+
+### 6. 로컬 앱 상태 확인
+GET http://localhost:8080/actuator/health
+
+### 7. 로컬 앱 지표 (수집 관련만 보려면 결과에서 er_ / external_api / public_api 검색)
+GET http://localhost:8080/actuator/prometheus

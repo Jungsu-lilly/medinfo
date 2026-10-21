@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/medinfo
+    username: medinfo
+    password: medinfo-local
+
+logging:
+  level:
+    com.medinfo: DEBUG
