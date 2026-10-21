@@ -1,0 +1,6 @@
+# 줄바꿈 고정: Windows에서 커밋해도 리눅스(CI, 서버)에서 스크립트가 깨지지 않게
+* text=auto
+gradlew text eol=lf
+*.sh    text eol=lf
+*.bat   text eol=crlf
+*.jar   binary

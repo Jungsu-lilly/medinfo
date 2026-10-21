@@ -1,5 +1,6 @@
 package com.medinfo.config;
 
+import com.medinfo.er.ErHospitalMatcher;
 import com.medinfo.er.ErHospitalRepository;
 import com.medinfo.hospital.HospitalRepository;
 import org.quartz.Scheduler;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * 처음 기동했을 때 기준 데이터가 비어 있으면 주기를 기다리지 않고 바로 한 번 돌린다.
  * Quartz에 "지금 1회 실행"으로 넣기 때문에 기동이 막히지 않고, 클러스터에서도 한 인스턴스만 실행한다.
+ * 병원 데이터가 이미 있으면 응급기관 매칭만 다시 돌린다(규칙 변경 반영).
  */
 @Component
 public class CollectorBootstrap implements ApplicationRunner {
@@ -23,14 +25,17 @@ public class CollectorBootstrap implements ApplicationRunner {
     private final Scheduler scheduler;
     private final HospitalRepository hospitalRepository;
     private final ErHospitalRepository erHospitalRepository;
+    private final ErHospitalMatcher matcher;
     private final boolean enabled;
 
     public CollectorBootstrap(Scheduler scheduler, HospitalRepository hospitalRepository,
                               ErHospitalRepository erHospitalRepository,
+                              ErHospitalMatcher matcher,
                               @Value("${collector.bootstrap.enabled:true}") boolean enabled) {
         this.scheduler = scheduler;
         this.hospitalRepository = hospitalRepository;
         this.erHospitalRepository = erHospitalRepository;
+        this.matcher = matcher;
         this.enabled = enabled;
     }
 
@@ -42,6 +47,9 @@ public class CollectorBootstrap implements ApplicationRunner {
         if (hospitalRepository.count() == 0) {
             log.info("병원 테이블이 비어 있어 병원정보 동기화를 바로 시작합니다 (수 분 소요)");
             scheduler.triggerJob(QuartzConfig.HOSPITAL_SYNC);
+        } else {
+            // 매칭 규칙이 바뀌어 배포됐을 수 있으니 기동 때 한 번 다시 맞춘다 (1초 미만, API 호출 없음)
+            matcher.match();
         }
         if (erHospitalRepository.count() == 0 || erHospitalRepository.countWithoutLocation() > 0) {
             log.info("응급기관 위치 정보가 없어 응급기관 목록 동기화를 바로 시작합니다");

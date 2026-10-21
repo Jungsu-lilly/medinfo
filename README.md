@@ -141,7 +141,8 @@ src/main/java/com/medinfo
 src/main/resources/db/migration
 ├── V1__init_schema.sql   서비스 테이블
 ├── V2__quartz_tables.sql Quartz 테이블
-└── V3__hospital_sync.sql 병원 전화·홈페이지 컬럼, 기관명 정규화 함수 norm_hosp_name
+├── V3__hospital_sync.sql 병원 전화·홈페이지 컬럼, 기관명 정규화 함수 norm_hosp_name
+└── V4__match_rules_v2.sql 정규화에 "부속" 제거 추가
 ```
 
 ## 지금 들어간 것 / 다음
@@ -149,7 +150,7 @@ src/main/resources/db/migration
 - [x] 응급실 실시간 수집 (2분, Quartz 클러스터)
 - [x] 공공데이터 공통 클라이언트 + 일일 한도 가드 + 지표
 - [x] 스냅샷 파티션 관리 (7일 보관)
-- [x] 응급의료기관 목록 수집(매일) + hpid↔ykiho 자동 매칭 (좌표 300m + 이름 유사도 0.5)
+- [x] 응급의료기관 목록 수집(매일) + hpid↔ykiho 자동 매칭 3단계 (300m+유사도 0.5 / 2km+이름 일치 / 100m+이름 포함), 기동 때 재매칭
 - [x] 병원정보 전국 수집(매주), 첫 기동 때 비어 있으면 즉시 실행
 - [ ] 비급여 요약·상세 대량 적재 (Spring Batch)
 - [ ] 조회 API, 화면
