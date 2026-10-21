@@ -1,0 +1,176 @@
+/* 디자인 토큰 — 시안 v0.1 (흰 바탕 + 회색 구분띠, 포인트 딥그린 1색, 응급실만 빨강) */
+:root {
+  --ink: #16181d;
+  --ink-2: #3a3f47;
+  --sub: #5b616b;
+  --muted: #6b7079;
+  --line: #ecedea;
+  --line-strong: #dadcd7;
+  --band: #f3f3f0;
+  --soft: #f6f6f3;
+  --accent: #0b6e5b;
+  --red: #c2311c;
+  --red-soft: #fdf1ee;
+  --amber: #8a5300;
+  --bg: #ffffff;
+
+  --nav-h: 60px;
+  --max-w: 480px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #eeeeeb;
+  color: var(--ink);
+  font-family: "IBM Plex Sans KR", system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+p,
+ol,
+ul {
+  margin: 0;
+}
+
+ol,
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* 폰 폭 기준 한 장짜리 화면. 데스크톱에서도 가운데 모바일 폭으로 */
+.app {
+  max-width: var(--max-w);
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--bg);
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+}
+
+.band {
+  height: 8px;
+  background: var(--band);
+}
+
+.section {
+  padding: 20px 16px 8px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.section-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.footer {
+  padding: 20px 16px 24px;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.footer-links a {
+  color: var(--sub);
+  text-decoration: underline;
+}
+
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.row-link {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+}
+
+.row-link:active {
+  background: var(--soft);
+}
