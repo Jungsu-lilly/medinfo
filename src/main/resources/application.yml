@@ -46,9 +46,12 @@ collector:
   # 응급기관 목록 + 매칭: 매일 03:40 (1회 호출)
   er-hospital-sync:
     cron: "0 40 3 * * ?"
+  # 응급기관↔병원 매칭 규칙 (ErHospitalMatcher 주석 참고)
   er-match:
-    radius-meters: 300
-    min-similarity: 0.5
+    radius-meters: 300            # 1단계 반경
+    min-similarity: 0.5           # 1단계 이름 유사도 하한
+    exact-name-radius-meters: 2000  # 2단계: 이름 완전일치면 이 반경까지
+    contains-radius-meters: 100   # 3단계: 이름 포함관계면 이 반경까지
   # 첫 기동 때 비어 있으면 즉시 1회 실행
   bootstrap:
     enabled: true
