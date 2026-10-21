@@ -10,3 +10,6 @@ DELETE FROM er_manual_match;
 -- 예시
 -- INSERT INTO er_manual_match (hpid, ykiho, note) VALUES
 --   ('A0000000', 'JDQ4MT...', '병원명 변경으로 심평원 이름과 다름');
+
+INSERT INTO er_manual_match (hpid, ykiho, note) VALUES
+    ('A2100290', 'JDQ4MTYyMiM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQ3IyQ3MiQyNjE0ODEjNDEjJDEjJDQjJDgz', '고양 더자인병원. 심평원 등록명 의료법인자인의료재단(더자인병원), 주소 중앙로 555 일치');
