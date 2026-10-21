@@ -95,9 +95,10 @@ SELECT match_method, count(*) FROM er_hospital GROUP BY 1;
 SELECT hpid, name, norm_hosp_name(name) AS 정리된이름, addr
 FROM er_hospital WHERE hospital_id IS NULL ORDER BY name;
 
--- 수동 지정 예시: 배치가 다시 돌아도 덮어쓰지 않음
--- UPDATE er_hospital SET hospital_id = (SELECT id FROM hospital WHERE ykiho = '...'), match_method = 'manual' WHERE hpid = 'A0000000';
 ```
+
+**수동 매칭**은 DB에 직접 UPDATE하지 말고 `src/main/resources/db/migration/R__er_manual_match.sql`에 한 줄 추가한다.
+그래야 로컬·운영 DB 모두 같은 결과가 나온다. 파일이 바뀌면 다음 기동 때 Flyway가 다시 실행하고, 매칭기가 목록을 우선 적용한다.
 
 ### API를 직접 호출해 보고 싶을 때
 
@@ -142,7 +143,9 @@ src/main/resources/db/migration
 ├── V1__init_schema.sql   서비스 테이블
 ├── V2__quartz_tables.sql Quartz 테이블
 ├── V3__hospital_sync.sql 병원 전화·홈페이지 컬럼, 기관명 정규화 함수 norm_hosp_name
-└── V4__match_rules_v2.sql 정규화에 "부속" 제거 추가
+├── V4__match_rules_v2.sql 정규화에 "부속" 제거 추가
+├── V5__norm_fix_and_manual_match.sql 정규화 버그 수정, 수동 매칭 목록 테이블
+└── R__er_manual_match.sql 수동 매칭 목록 (내용 바뀌면 재실행)
 ```
 
 ## 지금 들어간 것 / 다음
