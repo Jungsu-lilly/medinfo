@@ -5,21 +5,23 @@
 
 ## 1. 구성
 
+인프라 코드·만드는 순서는 [`infra/README.md`](../infra/README.md).
+
 ```
-사용자 ── HTTPS ──▶ ALB ──┬─ /api/*  ──▶ api (Spring Boot, :8080) ──┐
-                          └─ 그 밖     ──▶ web (Next.js, :3000) ─────┤ 서버 렌더링 때 api를 직접 호출 (BACKEND_URL)
-                                                                     ▼
-                                                    PostgreSQL 16 + PostGIS (RDS)
+사용자 ── HTTPS ──▶ ALB ──▶ web (Next.js, :3000|:3001) ── /api/* 도 여기서 같은 색 api로 ──▶ api (Spring Boot, :8080)
+                    blue·green 대상 그룹 중 하나                                                       │
+                                                                                                         ▼
+                                                                                    PostgreSQL 16 + PostGIS (RDS)
 api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ 공공데이터포털 API
 ```
 
 | 컨테이너 | 이미지 빌드 | 포트 | 헬스체크 |
 |---|---|---|---|
-| api | 루트 `Dockerfile` | 8080 서비스 / **8081 관리** | `GET :8081/actuator/health/readiness` |
-| web | `web/Dockerfile` | 3000 | `GET :3000/healthz` |
+| api | 루트 `Dockerfile` | 8080 서비스 / **8081 관리** | `GET :8081/actuator/health/readiness` (EC2 안에서만, 호스트 9000·9001) |
+| web | `web/Dockerfile` | 3000 (호스트 blue 3000 · green 3001) | `GET :3000/healthz` (ALB) |
 
-- **ALB 경로 라우팅**: `/api/*` → api 대상 그룹, 기본 → web 대상 그룹. 브라우저의 `/api` 호출이 Next를 거치지 않고 바로 Spring으로 감
-- **8081(관리 포트)은 ALB 리스너에 열지 않는다**: `/actuator/prometheus`가 외부에 보이면 안 됨. ALB 대상 그룹의 헬스체크 포트만 8081로 지정하고, 보안 그룹은 ALB → api 8081 허용, Prometheus → api 8081 허용
+- **ALB는 web만 본다**: 브라우저의 `/api/*`도 web(Next rewrites)이 같은 색 api로 넘긴다. 한 색 = web + api 한 쌍이라 전환은 대상 그룹 하나만 바꾸면 됨 (2026-11-02 변경. 처음엔 `/api/*`를 ALB에서 api로 바로 보내려 했음 → 대상 그룹 4개 + 리스너 규칙 2곳을 같이 바꿔야 해서 단순하게)
+- **8081(관리 포트)은 밖에 열지 않는다**: EC2의 127.0.0.1에만 열림 (`/actuator/prometheus`가 외부에 보이면 안 됨)
 - 로컬에서 운영 이미지 미리 띄우기: `docker compose -f compose.prod-local.yml up --build`
 
 ## 2. 환경변수
@@ -40,7 +42,7 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 
 | 이름 | 빌드 | 실행 | 설명 |
 |---|---|---|---|
-| `BACKEND_URL` | ✔ | ✔ | web → api 내부 주소 (예: `http://api.internal:8080`, 내부 ALB 또는 서비스 디스커버리) |
+| `BACKEND_URL` | ✔ | ✔ | web → api 내부 주소. 운영은 `http://api:8080` (같은 색 compose 네트워크 안의 api) |
 | `SITE_URL` | ✔ | | `https://xn--639ao13amqh.com` (병원값.com의 퓨니코드. 공유 미리보기·robots.txt) |
 | `SITE_INDEXING` | ✔ | | 공개 전 `false`(검색엔진 차단), 오픈할 때 `true`로 다시 빌드 |
 
@@ -92,7 +94,7 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 ## 9. 공개(오픈) 체크리스트
 
 - [x] 서비스 이름·도메인 확정 (병원값 / 병원값.com)
-- [ ] HTTPS 인증서(ACM, 퓨니코드 도메인)
+- [ ] HTTPS 인증서(ACM, 퓨니코드 도메인) → `infra/` (Terraform)
 - [ ] 개인정보처리방침 내용 채우기 (`/privacy`)
 - [ ] `SITE_INDEXING=true`로 web 다시 빌드·배포
 - [ ] 구글 서치콘솔·네이버 서치어드바이저 등록, sitemap

@@ -1,0 +1,40 @@
+# 운영 EC2에서 쓰는 compose. 한 색(blue·green) = web + api 한 쌍
+#   docker compose -p medinfo-blue  -f compose.yml up -d   ← deploy.sh가 실행
+#   docker compose -p medinfo-green -f compose.yml up -d
+# 프로젝트(-p)마다 네트워크가 따로라 web은 자기 색의 api만 본다 (BACKEND_URL=http://api:8080)
+# 값은 deploy.sh가 환경변수로 넘김: API_IMAGE, WEB_IMAGE, COLOR, WEB_PORT, MGMT_PORT, AWS_REGION
+# 비밀값(.env)은 deploy.sh가 SSM Parameter Store에서 받아 만든다
+
+x-logging: &logging
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION}
+    awslogs-group: /medinfo/prod
+    tag: "{{.Name}}"
+
+services:
+  api:
+    image: ${API_IMAGE}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      COLLECTORS_ENABLED: "true"
+    ports:
+      # 관리 포트(헬스체크·지표)는 서버 안에서만
+      - "127.0.0.1:${MGMT_PORT}:8081"
+    mem_limit: 1g
+    stop_grace_period: 40s # 앱 graceful shutdown 30초 + 여유
+    logging: *logging
+
+  web:
+    image: ${WEB_IMAGE}
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://api:8080
+    ports:
+      - "${WEB_PORT}:3000"
+    mem_limit: 512m
+    depends_on:
+      - api
+    logging: *logging
