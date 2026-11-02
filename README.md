@@ -110,6 +110,17 @@ FROM er_hospital WHERE hospital_id IS NULL ORDER BY name;
 브라우저로 열면 주소창이 `.../004046165486/openapi/service/...&SG_APIM=...`로 바뀌는데,
 그 주소를 다시 쓰면 에러 12가 난다. 원 주소(`/B551182/...`, `/B552657/...`)만 쓸 것.
 
+## 프론트 (web/)
+
+Next.js 16 (TypeScript) 모바일 웹앱. 자세한 건 [`web/README.md`](web/README.md).
+
+```bash
+# Spring을 먼저 띄운 상태에서
+cd web
+npm install
+npm run dev     # http://localhost:3000
+```
+
 ## 테스트
 
 ```bash
@@ -156,5 +167,6 @@ src/main/resources/db/migration
 - [x] 응급의료기관 목록 수집(매일) + hpid↔ykiho 자동 매칭 3단계 (300m+유사도 0.5 / 2km+이름 일치 / 100m+이름 포함), 기동 때 재매칭
 - [x] 병원정보 전국 수집(매주), 첫 기동 때 비어 있으면 즉시 실행
 - [ ] 비급여 요약·상세 대량 적재 (Spring Batch)
-- [ ] 조회 API, 화면
+- [x] 응급실 조회 API(`GET /api/er`) + Next.js 화면 4개(시안 v0.1), PWA
+- [ ] 가격·병원 조회 API (지금 화면은 예시 데이터)
 - [ ] Dockerfile, CI/CD, Terraform 이식 (Flicker)

@@ -1,0 +1,128 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+
+.region {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  background: none;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.searchWrap {
+  padding: 0 16px 12px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 8px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-size: 16px; /* 16px 미만이면 iOS가 입력 시 화면을 확대함 */
+}
+
+.search input::placeholder {
+  color: var(--muted);
+}
+
+.keywords {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.popRow {
+  border-bottom: 1px solid var(--line);
+}
+
+.popLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 0;
+}
+
+.rank {
+  width: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
+
+.popMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popName {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.popPrice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.range {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rangeHigh {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.rangeLabel {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.guideLink {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 0;
+}
+
+.guideTitle {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+}
