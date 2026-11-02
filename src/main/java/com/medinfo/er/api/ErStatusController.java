@@ -12,7 +12,10 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 응급실 실시간 현황 (기능 3).
@@ -69,6 +72,28 @@ public class ErStatusController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofSeconds(30)).cachePublic())
                 .body(body);
+    }
+
+    /** 기준 위치 직접 고르기용 시도·시군구 + 중심 좌표. 거의 안 바뀌어서 하루 캐시 */
+    @GetMapping("/api/er/regions")
+    public ResponseEntity<List<ErRegion>> regions() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic())
+                .body(toRegions(repository.areas()));
+    }
+
+    static List<ErRegion> toRegions(List<ErStatusRepository.AreaRow> rows) {
+        Map<String, ErRegion> bySido = new LinkedHashMap<>();
+        for (ErStatusRepository.AreaRow r : rows) {
+            bySido.computeIfAbsent(r.sidoCd(), k -> new ErRegion(r.sidoCd(), r.sidoNm(), new ArrayList<>()))
+                    .sggu().add(new ErRegion.Area(r.sgguCd(), r.sgguNm(), round(r.lat()), round(r.lng())));
+        }
+        return List.copyOf(bySido.values());
+    }
+
+    /** 소수 5자리(약 1m)면 충분 */
+    private static double round(double v) {
+        return Math.round(v * 100_000) / 100_000.0;
     }
 
     private ErStatus.Item toItem(ErStatusRepository.Row row, OffsetDateTime now) {
