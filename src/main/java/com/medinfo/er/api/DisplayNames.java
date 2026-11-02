@@ -14,11 +14,18 @@ import java.util.regex.Pattern;
  *   이화여자대학교의과대학부속목동병원        → 이화여자대학교 목동병원
  *   울산대학교병원                          → 그대로
  *   서울특별시보라매병원                    → 서울특별시 보라매병원
+ *   좋은문화병원(의료법인은성의료재단)        → 좋은문화병원 (법인명이 뒤 괄호에 있는 경우)
+ * 정리하다 이름이 망가지면(괄호만 남는 등) 원래 이름을 그대로 쓴다.
  * "이대목동병원" 같은 통칭은 규칙으로 만들 수 없어 쓰지 않는다 (공식 이름 기준).
  */
 public final class DisplayNames {
 
     private static final Pattern PAREN_NAME = Pattern.compile("^.*\\(([^)]*(?:병원|의원|의료원|센터))\\)\\s*$");
+    /** 끝 괄호 안이 법인명인 경우: "…병원(의료법인○○재단)" */
+    private static final Pattern TRAILING_ENTITY = Pattern.compile("\\s*\\([^()]*(?:법인|재단|학원)[^()]*\\)\\s*$");
+    private static final Pattern EMPTY_PAREN = Pattern.compile("\\(\\s*\\)");
+    /** 이름으로 볼 수 있는 글자(한글·영문·숫자)가 2자 이상 */
+    private static final Pattern NAME_LIKE = Pattern.compile(".*[가-힣A-Za-z0-9].*[가-힣A-Za-z0-9].*");
     private static final Pattern SHORT_PREFIX = Pattern.compile("^\\((?:의|재|학|사|복)\\)\\s*");
     private static final Pattern LEGAL_ENTITY = Pattern.compile("(?:의료법인|재단법인|학교법인|사회복지법인|사단법인|특수법인)\\s*");
     private static final Pattern FOUNDATION = Pattern.compile("^.*?(?:유지재단|의료재단|복지재단|재단|학원)\\s*(?=\\S)");
@@ -42,13 +49,31 @@ public final class DisplayNames {
             return paren.group(1).trim();
         }
 
+        s = TRAILING_ENTITY.matcher(s).replaceFirst("");
         s = SHORT_PREFIX.matcher(s).replaceFirst("");
         s = LEGAL_ENTITY.matcher(s).replaceAll("");
+        s = EMPTY_PAREN.matcher(s).replaceAll("");
         s = FOUNDATION.matcher(s).replaceFirst("");
         s = ATTACHED.matcher(s).replaceFirst("");
         s = UNIVERSITY.matcher(s).replaceFirst("대학교 ");
         s = CITY.matcher(s).replaceFirst("$1 ");
         s = s.trim();
-        return s.isEmpty() ? name.trim() : s;
+        return looksLikeName(s) ? s : name.trim();
+    }
+
+    /** 정리 결과가 이름으로 쓸 만한지: 글자 2자 이상 + 괄호 짝이 맞음 (")" 하나만 남는 사고 방지) */
+    static boolean looksLikeName(String s) {
+        if (!NAME_LIKE.matcher(s).matches()) {
+            return false;
+        }
+        int depth = 0;
+        for (char c : s.toCharArray()) {
+            if (c == '(') {
+                depth++;
+            } else if (c == ')' && --depth < 0) {
+                return false;
+            }
+        }
+        return depth == 0;
     }
 }
