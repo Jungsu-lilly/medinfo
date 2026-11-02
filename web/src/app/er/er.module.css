@@ -244,3 +244,9 @@
   font-size: 13px;
   font-weight: 500;
 }
+
+@media (min-width: 960px) {
+  .header {
+    padding-top: 28px;
+  }
+}

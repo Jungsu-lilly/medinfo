@@ -2,9 +2,16 @@
 
 모바일 웹앱(PWA). 시안 v0.1(홈 · 가격 비교 · 병원 상세 · 응급실)을 옮긴 것.
 
+- 폭 960px 미만: 모바일 레이아웃 (하단 탭, 본문 480px)
+- 폭 960px 이상: 데스크톱 레이아웃 (상단 메뉴, 본문 720px). 화면별 2단 배치는 오픈 후
+
 ## 실행
 
-Node.js 20 이상 필요 (`node -v`로 확인, 없으면 https://nodejs.org 에서 LTS 설치).
+Node.js **20.9 이상** 필요 (Next.js 16 요구사항). 권장은 26 LTS (`.nvmrc`).
+`.npmrc`의 `engine-strict=true` 때문에 낮은 버전에서는 `npm install`이 바로 실패한다.
+
+LTS를 설치했는데도 `node -v`가 예전 버전이면 Node가 두 군데 깔린 것. Windows는 `where.exe node`로 확인 →
+맨 위 경로가 실제로 쓰이는 Node (nvm-windows의 `C:\nvm4w\nodejs`가 앞에 있으면 `nvm use 26` 또는 그 경로 제거).
 
 ```bash
 cd web
