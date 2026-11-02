@@ -44,6 +44,6 @@ public/sw.js              서비스 워커: 오프라인 안내 화면만 (데�
 ## 알아둘 것
 
 - **Next.js 16 + Cache Components**: 데이터를 쓰는 부분은 `'use cache'`로 캐시하거나 `<Suspense>` 안에서 요청마다 읽는다. 빌드 결과의 ○(정적) / ◐(부분 정적) 표시로 확인
-- 폰트는 `@fontsource/ibm-plex-sans-kr`로 직접 포함 → 빌드 때 외부 접속 없음
+- 폰트는 Pretendard 가변 폰트(`pretendard` 패키지, dynamic subset)를 직접 포함 → 외부 CDN 없음, 쓰인 글자 조각만 내려받음
 - `output: "standalone"` → 컨테이너 이미지용 최소 서버가 `.next/standalone`에 생김
 - 서비스 워커는 production 빌드(`npm run build && npm start`)에서만 등록됨
