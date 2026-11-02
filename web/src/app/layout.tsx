@@ -7,6 +7,7 @@ import "@fontsource/ibm-plex-sans-kr/700.css";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import TopNav from "@/components/TopNav";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko">
       <body>
+        <TopNav />
         <div className="app">{children}</div>
         <BottomNav />
         <ServiceWorkerRegister />

@@ -33,3 +33,9 @@
   color: var(--red);
   font-weight: 600;
 }
+
+@media (min-width: 960px) {
+  .nav {
+    display: none;
+  }
+}

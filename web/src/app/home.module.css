@@ -126,3 +126,27 @@
   font-weight: 500;
   line-height: 22px;
 }
+
+@media (hover: hover) {
+  .popLink:hover .popName,
+  .guideLink:hover .guideTitle {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+@media (min-width: 960px) {
+  .header {
+    padding-top: 28px;
+  }
+
+  /* 서비스 이름은 상단 메뉴에 있으므로 홈 머리에서는 숨김 (병원 찾기 등 h1 머리는 그대로) */
+  .logo {
+    display: none;
+  }
+
+  .keywords {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
