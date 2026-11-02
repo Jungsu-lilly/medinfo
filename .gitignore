@@ -11,3 +11,12 @@ out/
 
 # OS
 .DS_Store
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+terraform.tfvars
+crash.log

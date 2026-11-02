@@ -1,0 +1,193 @@
+# main에 머지되면: 테스트 → 이미지 2개(api·web) 빌드·ECR 푸시 → EC2에 새 색 띄우기 → ALB 전환 → 옛 색 내리기
+# 되돌리기: Actions → deploy → Run workflow → tag에 예전 이미지 태그(커밋 앞 7자리) 입력 → 빌드 없이 그 이미지로 배포
+#
+# 저장소 Settings → Secrets and variables → Actions → Variables 에 필요한 것
+#   AWS_ROLE_ARN   terraform output github_deploy_role_arn
+#   SITE_INDEXING  공개 전 false(없으면 false), 오픈할 때 true
+# AWS 리소스(ALB·대상 그룹·EC2)는 이름(medinfo-…)으로 찾는다 → 시크릿에 ARN을 따로 넣지 않음
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "infra/**"
+      - "http/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "되돌리기: 이미 올라간 이미지 태그(커밋 앞 7자리). 비우면 지금 커밋을 빌드해서 배포"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+# 배포는 한 번에 하나씩 (앞 배포가 끝날 때까지 기다림)
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  PROJECT: medinfo
+  SITE_URL: https://xn--639ao13amqh.com
+
+jobs:
+  test:
+    if: github.event_name == 'push' || inputs.tag == ''
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: build ${{ matrix.name }}
+    needs: test
+    # AWS가 아직 없으면(AWS_ROLE_ARN 미설정) 테스트만 하고 끝
+    if: vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: api
+            context: .
+          - name: web
+            context: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          # 태그 = 커밋 앞 7자리 (되돌릴 때 이 값을 입력)
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ matrix.name }}:${{ steps.meta.outputs.tag }}
+          # web만 쓰는 값 (api 빌드에선 무시됨)
+          build-args: |
+            BACKEND_URL=http://api:8080
+            SITE_URL=${{ env.SITE_URL }}
+            SITE_INDEXING=${{ vars.SITE_INDEXING || 'false' }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: build
+    # 되돌리기(tag 입력)면 test·build가 건너뛰어진 상태로 실행
+    if: always() && vars.AWS_ROLE_ARN != '' && (needs.build.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.tag != ''))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 리소스 찾기 · 지금 색 확인
+        id: find
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG=${INPUT_TAG:-${GITHUB_SHA::7}}
+          [[ "$TAG" =~ ^[0-9a-f]{7}$ ]] || { echo "태그는 커밋 앞 7자리: $TAG"; exit 1; }
+          LB_ARN=$(aws elbv2 describe-load-balancers --names "$PROJECT-alb" --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+          LISTENER=$(aws elbv2 describe-listeners --load-balancer-arn "$LB_ARN" --query "Listeners[?Port==\`443\`].ListenerArn | [0]" --output text)
+          TG_BLUE=$(aws elbv2 describe-target-groups --names "$PROJECT-blue" --query 'TargetGroups[0].TargetGroupArn' --output text)
+          TG_GREEN=$(aws elbv2 describe-target-groups --names "$PROJECT-green" --query 'TargetGroups[0].TargetGroupArn' --output text)
+          INSTANCE=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=$PROJECT-app" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          ACTIVE_TG=$(aws elbv2 describe-listeners --listener-arns "$LISTENER" \
+            --query 'Listeners[0].DefaultActions[0].TargetGroupArn' --output text)
+          if [ "$ACTIVE_TG" = "$TG_GREEN" ]; then
+            ACTIVE=green; TARGET=blue; TARGET_TG=$TG_BLUE; OLD_TG=$TG_GREEN; PORT=3000; OLD_PORT=3001
+          else
+            ACTIVE=blue; TARGET=green; TARGET_TG=$TG_GREEN; OLD_TG=$TG_BLUE; PORT=3001; OLD_PORT=3000
+          fi
+          {
+            echo "TAG=$TAG"; echo "LISTENER=$LISTENER"; echo "INSTANCE=$INSTANCE"
+            echo "ACTIVE=$ACTIVE"; echo "TARGET=$TARGET"; echo "PORT=$PORT"; echo "OLD_PORT=$OLD_PORT"
+            echo "TARGET_TG=$TARGET_TG"; echo "OLD_TG=$OLD_TG"
+          } >> "$GITHUB_ENV"
+          echo "지금: $ACTIVE → 새로 띄울 색: $TARGET (web :$PORT), 이미지 $TAG, 서버 $INSTANCE"
+
+      - name: EC2에 새 색 띄우기 (SSM)
+        id: up
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          RAW=https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/deploy
+          PARAMS=$(jq -n --arg raw "$RAW" --arg color "$TARGET" --arg tag "$TAG" --arg reg "$REGISTRY" '{
+            commands: [
+              "set -e",
+              "mkdir -p /opt/medinfo && cd /opt/medinfo",
+              "for f in compose.yml deploy.sh cleanup.sh; do curl -fsSL \($raw)/$f -o $f; done",
+              "bash deploy.sh \($color) \($tag) \($reg)"
+            ],
+            executionTimeout: ["900"]
+          }')
+          CMD=$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
+            --comment "deploy $TARGET $TAG" --parameters "$PARAMS" --query 'Command.CommandId' --output text)
+          echo "SSM 명령 $CMD"
+          for _ in $(seq 1 120); do
+            sleep 5
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+            esac
+          done
+          aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text || true
+          echo "결과: $STATUS"
+          [ "$STATUS" = "Success" ]
+
+      - name: ALB 대상 그룹에 등록 · healthy 대기
+        id: register
+        run: |
+          aws elbv2 register-targets --target-group-arn "$TARGET_TG" --targets "Id=$INSTANCE,Port=$PORT"
+          for i in $(seq 1 60); do
+            STATE=$(aws elbv2 describe-target-health --target-group-arn "$TARGET_TG" \
+              --targets "Id=$INSTANCE,Port=$PORT" --query 'TargetHealthDescriptions[0].TargetHealth.State' --output text)
+            echo "[$i] $STATE"
+            [ "$STATE" = "healthy" ] && exit 0
+            sleep 5
+          done
+          echo "5분 안에 healthy가 되지 않음 → 전환 안 함"
+          exit 1
+
+      - name: 트래픽 전환 (HTTPS 리스너 → 새 색)
+        id: switch
+        run: |
+          aws elbv2 modify-listener --listener-arn "$LISTENER" \
+            --default-actions "Type=forward,TargetGroupArn=$TARGET_TG" > /dev/null
+          echo "전환 완료: $ACTIVE → $TARGET"
+
+      - name: 옛 색 내리기
+        run: |
+          aws elbv2 deregister-targets --target-group-arn "$OLD_TG" --targets "Id=$INSTANCE,Port=$OLD_PORT" || true
+          sleep 40 # 대상 그룹 등록 해제 지연(35초) 동안 처리 중인 요청을 마무리
+          aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
+            --comment "cleanup $ACTIVE" \
+            --parameters "{\"commands\":[\"bash /opt/medinfo/cleanup.sh $ACTIVE\"]}" \
+            --query 'Command.CommandId' --output text
+
+      # 전환 전에 실패하면 새로 띄운 색만 치운다 (서비스 중인 색은 그대로)
+      - name: 실패 정리
+        if: failure() && steps.switch.outcome != 'success' && env.TARGET != ''
+        run: |
+          aws elbv2 deregister-targets --target-group-arn "$TARGET_TG" --targets "Id=$INSTANCE,Port=$PORT" || true
+          aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
+            --comment "rollback $TARGET" \
+            --parameters "{\"commands\":[\"bash /opt/medinfo/cleanup.sh $TARGET\"]}" \
+            --query 'Command.CommandId' --output text || true
+          echo "새 색($TARGET)을 내렸음. 서비스는 $ACTIVE 그대로"
