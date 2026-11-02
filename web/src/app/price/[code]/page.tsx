@@ -12,12 +12,13 @@ import styles from "./price.module.css";
 type Props = PageProps<"/price/[code]">;
 
 /** 주소창: /price/ABZ010001?sido=110000&sggu=110016 또는 ?lat=..&lng=.. (내 위치) */
-async function resolve(props: Props): Promise<{ code: string; q: PriceQuery }> {
+async function resolve(props: Props): Promise<{ code: string; q: PriceQuery; sort: "price" | "distance" }> {
   const [{ code }, sp] = await Promise.all([props.params, props.searchParams]);
   const lat = coord(sp.lat);
   const lng = coord(sp.lng);
-  if (lat !== undefined && lng !== undefined) return { code, q: { lat, lng } };
-  return { code, q: { sido: regionCode(sp.sido) ?? DEFAULT_SIDO, sggu: regionCode(sp.sggu) } };
+  const sort = sp.sort === "distance" ? "distance" : "price";
+  if (lat !== undefined && lng !== undefined) return { code, q: { lat, lng }, sort };
+  return { code, q: { sido: regionCode(sp.sido) ?? DEFAULT_SIDO, sggu: regionCode(sp.sggu) }, sort };
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
@@ -53,7 +54,7 @@ function regionLabel(data: Prices): string {
 }
 
 async function PriceContent(props: Props) {
-  const { code, q } = await resolve(props);
+  const { code, q, sort } = await resolve(props);
   const [{ data, error }, regions] = await Promise.all([getPrices(code, q), getRegions()]);
 
   if (!data) {
@@ -127,7 +128,16 @@ async function PriceContent(props: Props) {
 
       <div className="band" />
 
-      {rows.length > 0 && <PriceList rows={rows} median={stats.median} byDistance={data.point !== null} />}
+      {/* 지역 ↔ 내 위치가 바뀌면 key가 바뀌어 정렬 상태를 새로 잡는다 */}
+      {rows.length > 0 && (
+        <PriceList
+          key={data.point ? `near-${sort}` : "region"}
+          rows={rows}
+          median={stats.median}
+          byDistance={data.point !== null}
+          initialSort={sort}
+        />
+      )}
 
       <SiteFooter>
         {item.fullName} · 출처 건강보험심사평가원 비급여진료비정보 (2026년 9월 공개분).

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import ErStrip from "@/components/ErStrip";
 import { SearchIcon } from "@/components/Icons";
+import PriceLink from "@/components/PriceLink";
 import SiteFooter from "@/components/SiteFooter";
 import { DEFAULT_SIDO, getFeatured } from "@/lib/api";
 import { manwon } from "@/lib/format";
@@ -80,14 +81,14 @@ export default function HomePage() {
 
 async function Popular() {
   await connection();
-  const { data, error } = await getFeatured(DEFAULT_SIDO);
+  const { data, error } = await getFeatured(DEFAULT_SIDO, 8);
   if (error) return <p className={styles.loading}>가격 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>;
   if (!data || data.length === 0) return <p className={styles.loading}>가격 정보를 준비하고 있어요.</p>;
   return (
     <ol>
       {data.map((p, i) => (
         <li key={p.code} className={styles.popRow}>
-          <Link href={`/price/${p.code}`} className={styles.popLink}>
+          <PriceLink code={p.code} className={styles.popLink}>
             <span className={styles.rank}>{i + 1}</span>
             <span className={styles.popMain}>
               <span className={styles.popName}>{p.name}</span>
@@ -103,7 +104,7 @@ async function Popular() {
               </span>
               <span className={styles.rangeLabel}>{p.stats.high > p.stats.low ? "최저 ~ 최고" : "가격"}</span>
             </span>
-          </Link>
+          </PriceLink>
         </li>
       ))}
     </ol>

@@ -1,12 +1,12 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
 import { LocateIcon } from "@/components/Icons";
 import type { Region } from "@/lib/api";
+import { coordsQuery, useLocate } from "@/lib/location";
 import styles from "./price.module.css";
 
-/** 지역 고르기: 시도 → 시군구(선택). 또는 내 위치 반경 5km. 고르면 주소창이 바뀌고 서버가 다시 그린다 */
+/** 지역 고르기: 시도 → 시군구(선택). 또는 내 위치 반경 5km(가까운 순으로 열림). 고르면 주소창이 바뀌고 서버가 다시 그린다 */
 export default function RegionPicker({
   regions,
   sido,
@@ -20,28 +20,10 @@ export default function RegionPicker({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [locating, setLocating] = useState(false);
-  const [locError, setLocError] = useState(false);
+  const { state, locate } = useLocate();
   const current = regions.find((r) => r.code === sido);
 
   const go = (params: Record<string, string>) => router.push(`${pathname}?${new URLSearchParams(params)}`);
-
-  const locate = () => {
-    if (!("geolocation" in navigator)) return setLocError(true);
-    setLocating(true);
-    setLocError(false);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        go({ lat: pos.coords.latitude.toFixed(4), lng: pos.coords.longitude.toFixed(4) });
-      },
-      () => {
-        setLocating(false);
-        setLocError(true);
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
-    );
-  };
 
   return (
     <div className={styles.picker}>
@@ -81,9 +63,15 @@ export default function RegionPicker({
           </select>
         </>
       )}
-      <button type="button" className={styles.locateBtn} onClick={locate} disabled={locating} aria-pressed={nearMe}>
+      <button
+        type="button"
+        className={styles.locateBtn}
+        onClick={() => locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`))}
+        disabled={state === "locating"}
+        aria-pressed={nearMe}
+      >
         <LocateIcon />
-        {locating ? "확인 중…" : locError ? "위치 권한 필요" : "내 위치"}
+        {state === "locating" ? "확인 중…" : state === "denied" ? "위치 권한 필요" : "내 위치"}
       </button>
     </div>
   );

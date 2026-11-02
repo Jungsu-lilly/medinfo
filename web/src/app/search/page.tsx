@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import BackHeader from "@/components/BackHeader";
 import { SearchIcon } from "@/components/Icons";
+import PriceLink from "@/components/PriceLink";
 import { searchItems } from "@/lib/api";
 import { manwon } from "@/lib/format";
 import { KEYWORDS } from "@/lib/guides";
@@ -57,7 +58,7 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
         <ul>
           {(data ?? []).map((p) => (
             <li key={p.code} className={styles.popRow}>
-              <Link href={`/price/${p.code}`} className={styles.popLink}>
+              <PriceLink code={p.code} className={styles.popLink}>
                 <span className={styles.popMain}>
                   <span className={styles.popName}>{p.name}</span>
                   <span className="meta">
@@ -71,7 +72,7 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
                     <span className={styles.rangeHigh}>원</span>
                   </span>
                 </span>
-              </Link>
+              </PriceLink>
             </li>
           ))}
         </ul>

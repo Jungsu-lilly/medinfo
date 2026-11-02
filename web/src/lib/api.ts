@@ -81,7 +81,8 @@ function query(params: Record<string, string | number | null | undefined>): stri
   return s ? `?${s}` : "";
 }
 
-export const getFeatured = (sido = DEFAULT_SIDO) => attempt<ItemSummary[]>(`/api/items/featured${query({ sido })}`);
+export const getFeatured = (sido = DEFAULT_SIDO, limit = 8) =>
+  attempt<ItemSummary[]>(`/api/items/featured${query({ sido, limit })}`);
 
 export const searchItems = (q: string) => attempt<ItemSummary[]>(`/api/items${query({ q })}`);
 
