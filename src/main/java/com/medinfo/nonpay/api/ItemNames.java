@@ -20,6 +20,14 @@ final class ItemNames {
             "엑스레이", List.of("X-ray", "단순촬영")
     );
 
+    /**
+     * 동의어 때문에 딸려 오는 다른 항목 빼기.
+     * 독감 → 인플루엔자로 찾으면 b형헤모필루스인플루엔자(Hib, 영유아 뇌수막염 백신)도 걸린다
+     */
+    private static final Map<String, List<String>> EXCLUDES = Map.of(
+            "독감", List.of("헤모필루스")
+    );
+
     private ItemNames() {
     }
 
@@ -172,8 +180,29 @@ final class ItemNames {
         return out;
     }
 
+    /** 검색어 단어들에 걸린 제외어 (하나라도 들어간 항목은 뺀다) */
+    static List<String> excludes(String query) {
+        if (query == null) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (String word : query.trim().split("\\s+")) {
+            out.addAll(EXCLUDES.getOrDefault(word.toLowerCase(Locale.ROOT), List.of()));
+        }
+        return out.stream().distinct().toList();
+    }
+
     /** ILIKE 패턴: %, _ 같은 특수문자는 글자 그대로 찾게 이스케이프 */
     static String like(String s) {
-        return "%" + s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        return "%" + escape(s) + "%";
+    }
+
+    /** LIKE 앞부분 일치 패턴 */
+    static String prefix(String s) {
+        return escape(s) + "%";
+    }
+
+    private static String escape(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

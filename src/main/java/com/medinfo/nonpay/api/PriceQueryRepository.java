@@ -1,5 +1,6 @@
 package com.medinfo.nonpay.api;
 
+import com.medinfo.nonpay.api.ApiModels.Stats;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -43,8 +44,8 @@ public class PriceQueryRepository {
             rs.getString("npay_cd"), rs.getString("kor_nm"), rs.getString("mdiv_nm"),
             rs.getInt("hospital_count"), rs.getInt("low"), rs.getInt("median"), rs.getInt("high"));
 
-    /** terms: 단어끼리 AND, 동의어끼리 OR. 이름·분류명 전체에서 찾고 병원 많은 순 */
-    public List<ItemStatRow> searchItems(List<List<String>> terms, int limit) {
+    /** terms: 단어끼리 AND, 동의어끼리 OR. excludes가 들어간 항목은 뺀다. 이름·분류명 전체에서 찾고 병원 많은 순 */
+    public List<ItemStatRow> searchItems(List<List<String>> terms, List<String> excludes, int limit) {
         if (terms.isEmpty()) {
             return List.of();
         }
@@ -61,6 +62,10 @@ public class PriceQueryRepository {
                 args.add(ItemNames.like(alts.get(k)));
             }
             sql.append(")");
+        }
+        for (String ex : excludes) {
+            sql.append(" AND i.kor_nm NOT ILIKE ? ESCAPE '\\'");
+            args.add(ItemNames.like(ex));
         }
         sql.append(" ORDER BY s.hospital_count DESC, i.kor_nm LIMIT ?");
         args.add(limit);
@@ -83,6 +88,34 @@ public class PriceQueryRepository {
         return rows;
     }
 
+    /** 예방접종 묶음의 제품들 (항목명 앞부분 일치). 그 지역에 가격이 있는 제품만, 병원 많은 순 */
+    public List<ItemStatRow> itemsByNamePrefix(String korNmPrefix, String sido) {
+        return jdbc.query(ITEM_STAT_COLUMNS + " WHERE i.kor_nm LIKE ? ESCAPE '\\' ORDER BY s.hospital_count DESC, i.kor_nm",
+                ITEM_STAT, sido, ItemNames.prefix(korNmPrefix));
+    }
+
+    /**
+     * 여러 항목을 합친 전국 통계. 병원마다 가장 싼 항목 가격 1개로 세서
+     * 묶음 페이지(병원별 최저가 목록)의 통계와 같은 기준이 되게 한다
+     */
+    public Stats combinedStats(List<String> codes) {
+        if (codes.isEmpty()) {
+            return new Stats(0, 0, 0, 0);
+        }
+        return jdbc.query(con -> {
+            var ps = con.prepareStatement("""
+                    SELECT count(*), coalesce(min(m), 0), coalesce(round(percentile_cont(0.5) WITHIN GROUP (ORDER BY m)), 0),
+                           coalesce(max(m), 0)
+                      FROM (SELECT hospital_id, min(min_prc) AS m
+                              FROM nonpay_price_current
+                             WHERE npay_cd = ANY (?)
+                             GROUP BY hospital_id) t
+                    """);
+            ps.setArray(1, con.createArrayOf("varchar", codes.toArray()));
+            return ps;
+        }, (rs, i) -> new Stats(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4))).get(0);
+    }
+
     public List<ItemStatRow> topItems(String sido, int limit) {
         return jdbc.query(ITEM_STAT_COLUMNS + " ORDER BY s.hospital_count DESC, i.kor_nm LIMIT ?",
                 ITEM_STAT, sido, limit);
@@ -92,32 +125,59 @@ public class PriceQueryRepository {
 
     private static final RowMapper<PriceRaw> PRICE = (rs, i) -> new PriceRaw(
             rs.getLong("id"), rs.getString("name"), rs.getString("cl_cd_nm"),
-            rs.getInt("min_prc"), rs.getInt("max_prc"), (Double) rs.getObject("dist", Double.class));
+            rs.getInt("min_prc"), rs.getInt("max_prc"), (Double) rs.getObject("dist", Double.class),
+            rs.getString("npay_cd"));
 
-    /** 시도(+시군구) 안의 병원. idx_summary_compare(npay_cd, sido_cd, sggu_cd, min_prc) */
-    public List<PriceRaw> pricesInRegion(String code, String sido, String sggu, int limit) {
-        return jdbc.query("""
-                SELECT h.id, h.name, h.cl_cd_nm, p.min_prc, p.max_prc, NULL::float8 AS dist
-                  FROM nonpay_price_current p
-                  JOIN hospital h ON h.id = p.hospital_id
-                 WHERE p.npay_cd = ?
-                   AND p.sido_cd = ?
-                   AND (?::text IS NULL OR p.sggu_cd = ?)
-                 ORDER BY p.min_prc, h.name
-                 LIMIT ?
-                """, PRICE, code, sido, sggu, sggu, limit);
+    /**
+     * 시도(+시군구) 안의 병원. idx_summary_compare(npay_cd, sido_cd, sggu_cd, min_prc)
+     * codes가 여러 개(예방접종 묶음)면 병원마다 가장 싼 항목 1건만
+     */
+    public List<PriceRaw> pricesInRegion(List<String> codes, String sido, String sggu, int limit) {
+        return jdbc.query(con -> {
+            var ps = con.prepareStatement("""
+                    SELECT * FROM (
+                        SELECT DISTINCT ON (h.id) h.id, h.name, h.cl_cd_nm, p.min_prc, p.max_prc, NULL::float8 AS dist, p.npay_cd
+                          FROM nonpay_price_current p
+                          JOIN hospital h ON h.id = p.hospital_id
+                         WHERE p.npay_cd = ANY (?)
+                           AND p.sido_cd = ?
+                           AND (?::text IS NULL OR p.sggu_cd = ?)
+                         ORDER BY h.id, p.min_prc, p.npay_cd
+                    ) t
+                     ORDER BY min_prc, name
+                     LIMIT ?
+                    """);
+            ps.setArray(1, con.createArrayOf("varchar", codes.toArray()));
+            ps.setString(2, sido);
+            ps.setString(3, sggu);
+            ps.setString(4, sggu);
+            ps.setInt(5, limit);
+            return ps;
+        }, PRICE);
     }
 
-    /** 내 위치 반경 안의 병원 (좌표가 있는 병원만) */
-    public List<PriceRaw> pricesNear(String code, double lat, double lng, int radiusMeters, int limit) {
-        return jdbc.query("""
-                SELECT h.id, h.name, h.cl_cd_nm, p.min_prc, p.max_prc, ST_Distance(h.location, pt.g) AS dist
-                  FROM (SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography AS g) pt
-                  JOIN hospital h ON h.location IS NOT NULL AND ST_DWithin(h.location, pt.g, ?)
-                  JOIN nonpay_price_current p ON p.hospital_id = h.id AND p.npay_cd = ?
-                 ORDER BY p.min_prc, h.name
-                 LIMIT ?
-                """, PRICE, lng, lat, radiusMeters, code, limit);
+    /** 내 위치 반경 안의 병원 (좌표가 있는 병원만). codes가 여러 개면 병원마다 가장 싼 항목 1건만 */
+    public List<PriceRaw> pricesNear(List<String> codes, double lat, double lng, int radiusMeters, int limit) {
+        return jdbc.query(con -> {
+            var ps = con.prepareStatement("""
+                    SELECT * FROM (
+                        SELECT DISTINCT ON (h.id) h.id, h.name, h.cl_cd_nm, p.min_prc, p.max_prc,
+                               ST_Distance(h.location, pt.g) AS dist, p.npay_cd
+                          FROM (SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography AS g) pt
+                          JOIN hospital h ON h.location IS NOT NULL AND ST_DWithin(h.location, pt.g, ?)
+                          JOIN nonpay_price_current p ON p.hospital_id = h.id AND p.npay_cd = ANY (?)
+                         ORDER BY h.id, p.min_prc, p.npay_cd
+                    ) t
+                     ORDER BY min_prc, name
+                     LIMIT ?
+                    """);
+            ps.setDouble(1, lng);
+            ps.setDouble(2, lat);
+            ps.setInt(3, radiusMeters);
+            ps.setArray(4, con.createArrayOf("varchar", codes.toArray()));
+            ps.setInt(5, limit);
+            return ps;
+        }, PRICE);
     }
 
     // ── 병원 ─────────────────────────────────────────
@@ -241,7 +301,9 @@ public class PriceQueryRepository {
                               int high) {
     }
 
-    public record PriceRaw(long hospitalId, String name, String kind, int minPrice, int maxPrice, Double distance) {
+    /** code = 이 병원 가격의 항목 (묶음일 때 어느 제품인지) */
+    public record PriceRaw(long hospitalId, String name, String kind, int minPrice, int maxPrice, Double distance,
+                           String code) {
     }
 
     public record HospitalRow(long id, String name, String kind, String addr, String tel, String hospUrl,

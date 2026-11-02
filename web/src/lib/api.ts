@@ -6,7 +6,18 @@ import { cacheLife } from "next/cache";
  */
 
 export type Stats = { hospitalCount: number; low: number; median: number; high: number };
-export type ItemSummary = { code: string; name: string; fullName: string; group: string | null; stats: Stats };
+/**
+ * vaccine이 있으면 예방접종 묶음 카드 (/vaccine/{vaccine}): code는 null, group은 "백신 N종",
+ * stats는 병원마다 가장 싼 제품 기준
+ */
+export type ItemSummary = {
+  code: string | null;
+  name: string;
+  fullName: string;
+  group: string | null;
+  stats: Stats;
+  vaccine: string | null;
+};
 export type ItemInfo = { code: string; name: string; fullName: string; path: string[] };
 export type RegionRef = { sido: string; sidoName: string | null; sggu: string | null; sgguName: string | null };
 export type PointRef = { lat: number; lng: number; radiusMeters: number };
@@ -17,6 +28,8 @@ export type PriceRow = {
   minPrice: number;
   maxPrice: number;
   distanceMeters: number | null;
+  /** 예방접종 묶음일 때만: 이 병원에서 가장 싼 백신 제품 */
+  product: string | null;
 };
 export type PriceList = {
   item: ItemInfo;
@@ -26,6 +39,8 @@ export type PriceList = {
   rows: PriceRow[];
   /** 비급여 데이터를 마지막으로 받아온 날 (yyyy-MM-dd) */
   collectedOn: string | null;
+  /** 예방접종 묶음일 때만: 제품별 통계 (같은 지역, 내 위치면 전국) */
+  products: ItemSummary[] | null;
 };
 export type HospitalItem = { code: string; name: string; std: string | null; price: number; regionMedian: number | null };
 export type ItemGroup = { name: string; items: HospitalItem[] };
@@ -100,15 +115,21 @@ export const getFeatured = (sido = DEFAULT_SIDO, limit = 8) =>
 export const searchItems = (q: string) => attempt<ItemSummary[]>(`/api/items${query({ q })}`);
 
 export type PriceQuery = { sido?: string; sggu?: string; lat?: number; lng?: number };
+function priceQuery(p: PriceQuery): string {
+  return query({ sido: p.sido, sggu: p.sggu, lat: p.lat?.toFixed(4), lng: p.lng?.toFixed(4) });
+}
+
 export const getPrices = (code: string, p: PriceQuery) =>
-  attempt<PriceList>(
-    `/api/prices/${encodeURIComponent(code)}${query({
-      sido: p.sido,
-      sggu: p.sggu,
-      lat: p.lat?.toFixed(4),
-      lng: p.lng?.toFixed(4),
-    })}`,
-  );
+  attempt<PriceList>(`/api/prices/${encodeURIComponent(code)}${priceQuery(p)}`);
+
+/** 예방접종 질병별 묶음 (flu, shingles …). 모양은 getPrices와 같고 products가 붙는다 */
+export const getVaccine = (slug: string, p: PriceQuery) =>
+  attempt<PriceList>(`/api/vaccines/${encodeURIComponent(slug)}${priceQuery(p)}`);
+
+/** 검색·홈 목록 1건의 이동 주소 */
+export function itemHref(p: ItemSummary): string {
+  return p.vaccine ? `/vaccine/${p.vaccine}` : `/price/${p.code}`;
+}
 
 export const getHospital = (id: string) => attempt<HospitalPage>(`/api/hospitals/${encodeURIComponent(id)}`);
 

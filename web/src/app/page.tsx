@@ -5,7 +5,7 @@ import ErStrip from "@/components/ErStrip";
 import { SearchIcon } from "@/components/Icons";
 import PriceLink from "@/components/PriceLink";
 import SiteFooter from "@/components/SiteFooter";
-import { DEFAULT_SIDO, getFeatured } from "@/lib/api";
+import { DEFAULT_SIDO, getFeatured, itemHref } from "@/lib/api";
 import { manwon } from "@/lib/format";
 import { GUIDES, KEYWORDS } from "@/lib/guides";
 import { SITE_NAME } from "@/lib/site";
@@ -87,8 +87,8 @@ async function Popular() {
   return (
     <ol>
       {data.map((p, i) => (
-        <li key={p.code} className={styles.popRow}>
-          <PriceLink code={p.code} className={styles.popLink}>
+        <li key={p.vaccine ?? p.code} className={styles.popRow}>
+          <PriceLink href={itemHref(p)} className={styles.popLink}>
             <span className={styles.rank}>{i + 1}</span>
             <span className={styles.popMain}>
               <span className={styles.popName}>{p.name}</span>

@@ -12,8 +12,11 @@ public final class ApiModels {
     public record Stats(int hospitalCount, int low, int median, int high) {
     }
 
-    /** 항목 검색·홈 목록 1건 */
-    public record ItemSummary(String code, String name, String fullName, String group, Stats stats) {
+    /**
+     * 항목 검색·홈 목록 1건.
+     * vaccine = 예방접종 묶음 카드일 때만 묶음 주소(/vaccine/{vaccine}). 이때 code는 null, group은 "백신 N종", stats는 병원마다 가장 싼 제품 기준
+     */
+    public record ItemSummary(String code, String name, String fullName, String group, Stats stats, String vaccine) {
     }
 
     public record ItemInfo(String code, String name, String fullName, List<String> path) {
@@ -21,10 +24,11 @@ public final class ApiModels {
 
     /**
      * 가격 비교 결과. region(시도·시군구) 또는 point(내 위치 반경) 중 하나.
-     * collectedOn = 비급여 데이터를 마지막으로 받아온 날 (yyyy-MM-dd, 아직 없으면 null)
+     * collectedOn = 비급여 데이터를 마지막으로 받아온 날 (yyyy-MM-dd, 아직 없으면 null).
+     * products = 예방접종 묶음일 때만 제품별 통계 (같은 지역 기준, 내 위치면 전국)
      */
     public record PriceList(ItemInfo item, RegionRef region, PointRef point, Stats stats, List<PriceRow> rows,
-                            String collectedOn) {
+                            String collectedOn, List<ItemSummary> products) {
     }
 
     public record RegionRef(String sido, String sidoName, String sggu, String sgguName) {
@@ -33,9 +37,9 @@ public final class ApiModels {
     public record PointRef(double lat, double lng, int radiusMeters) {
     }
 
-    /** distanceMeters는 내 위치 기준일 때만 */
+    /** distanceMeters는 내 위치 기준일 때만, product는 예방접종 묶음일 때만 (이 병원에서 가장 싼 제품) */
     public record PriceRow(long hospitalId, String name, String kind, int minPrice, int maxPrice,
-                           Integer distanceMeters) {
+                           Integer distanceMeters, String product) {
     }
 
     /**

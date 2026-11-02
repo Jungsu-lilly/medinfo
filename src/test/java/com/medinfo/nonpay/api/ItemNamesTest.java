@@ -48,6 +48,11 @@ class ItemNamesTest {
         assertThat(ItemNames.terms("독감")).containsExactly(List.of("독감", "인플루엔자"));
         assertThat(ItemNames.terms("  ")).isEmpty();
         assertThat(ItemNames.terms("a b c d e f g")).hasSize(5);
+        // 독감으로 찾으면 Hib(b형헤모필루스인플루엔자) 백신은 뺀다
+        assertThat(ItemNames.excludes("독감")).containsExactly("헤모필루스");
+        assertThat(ItemNames.excludes("독감 예방접종")).containsExactly("헤모필루스");
+        assertThat(ItemNames.excludes("인플루엔자")).isEmpty();
+        assertThat(ItemNames.prefix("예방접종료/A_형/")).isEqualTo("예방접종료/A\\_형/%");
     }
 
     @Test

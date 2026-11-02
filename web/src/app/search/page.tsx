@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import BackHeader from "@/components/BackHeader";
 import { SearchIcon } from "@/components/Icons";
 import PriceLink from "@/components/PriceLink";
-import { searchItems } from "@/lib/api";
+import { itemHref, searchItems } from "@/lib/api";
 import { manwon } from "@/lib/format";
 import { KEYWORDS } from "@/lib/guides";
 import styles from "../home.module.css";
@@ -57,8 +57,8 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
         {data && data.length > 0 && <p className="meta">전국 병원급 기준 · 병원이 많은 순</p>}
         <ul>
           {(data ?? []).map((p) => (
-            <li key={p.code} className={styles.popRow}>
-              <PriceLink code={p.code} className={styles.popLink}>
+            <li key={p.vaccine ?? p.code} className={styles.popRow}>
+              <PriceLink href={itemHref(p)} className={styles.popLink}>
                 <span className={styles.popMain}>
                   <span className={styles.popName}>{p.name}</span>
                   <span className="meta">
