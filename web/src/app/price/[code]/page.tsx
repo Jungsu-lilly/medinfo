@@ -4,7 +4,7 @@ import BackHeader from "@/components/BackHeader";
 import { InfoIcon } from "@/components/Icons";
 import SiteFooter from "@/components/SiteFooter";
 import { coord, DEFAULT_SIDO, getPrices, getRegions, regionCode, type PriceList as Prices, type PriceQuery } from "@/lib/api";
-import { manwon, won } from "@/lib/format";
+import { koreanDate, manwon, won } from "@/lib/format";
 import PriceList from "./PriceList";
 import RegionPicker from "./RegionPicker";
 import styles from "./price.module.css";
@@ -140,7 +140,8 @@ async function PriceContent(props: Props) {
       )}
 
       <SiteFooter>
-        {item.fullName} · 출처 건강보험심사평가원 비급여진료비정보 (2026년 9월 공개분).
+        {item.fullName} · 출처 건강보험심사평가원 비급여진료비정보
+        {data.collectedOn ? ` (${koreanDate(data.collectedOn)} 수집)` : ""}.
         <br />
         병원급(상급종합·종합병원·병원 등)만 포함하며, 의원급 가격은 공개되지 않습니다.
       </SiteFooter>

@@ -10,7 +10,7 @@ import styles from "../home.module.css";
 
 export const metadata: Metadata = {
   title: "병원 찾기",
-  description: "가까운 병원이나 병원 이름으로 찾아 비급여 진료비를 확인하세요.",
+  description: "병원 이름이나 가까운 병원으로 찾아 비급여 진료비를 확인하세요.",
 };
 
 type Props = PageProps<"/hospital">;
@@ -20,7 +20,7 @@ export default function HospitalIndexPage(props: Props) {
     <>
       <header className={styles.header}>
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>병원 찾기</h1>
-        <span className="meta">비급여 가격이 있는 병원</span>
+        <span className="meta">이름으로 찾기 · 가까운 병원</span>
       </header>
       <Suspense fallback={<p className={styles.loading} style={{ padding: 16 }}>불러오는 중…</p>}>
         <Results searchParams={props.searchParams} />
@@ -62,6 +62,11 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
         {data && data.length === 0 && (
           <p className={styles.loading}>{q ? "이름이 맞는 병원이 없어요." : "반경 5km 안에 비급여 가격이 있는 병원이 없어요."}</p>
         )}
+        {!q && data && data.length > 0 && (
+          <p className="meta" style={{ marginBottom: 4 }}>
+            비급여 가격이 있는 병원만 보여요. 의원은 이름으로 찾아 주세요.
+          </p>
+        )}
         <ul>
           {(data ?? []).map((h) => (
             <li key={h.id} className={styles.popRow}>
@@ -70,6 +75,7 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
                   <span className={styles.popName}>{h.name}</span>
                   <span className="meta">
                     {h.kind}
+                    {!h.hasPrices && " · 가격 정보 없음"}
                     {h.addr ? ` · ${h.addr}` : ""}
                   </span>
                 </span>
