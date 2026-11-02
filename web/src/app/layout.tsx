@@ -7,9 +7,12 @@ import { Suspense } from "react";
 import BottomNav, { BottomNavView } from "@/components/BottomNav";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import TopNav, { TopNavView } from "@/components/TopNav";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_INDEXING, SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  // 공개 전에는 모든 페이지 noindex (robots.ts와 같이)
+  robots: SITE_INDEXING ? undefined : { index: false, follow: false },
   title: { default: `${SITE_NAME} — 비급여 진료비 비교·응급실 현황`, template: `%s | ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,

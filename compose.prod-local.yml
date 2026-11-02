@@ -1,0 +1,54 @@
+# 운영 이미지를 내 PC에서 미리 띄워보는 용도 (AWS에 올리기 전 확인)
+#   docker compose -f compose.prod-local.yml up --build
+#   → http://localhost:3000 (화면), http://localhost:8080/api/... (API), http://localhost:8081/actuator/health (관리)
+# 인증키는 프로젝트 루트 .env의 PUBLIC_DATA_SERVICE_KEY를 그대로 읽는다 (compose가 .env를 자동으로 읽음)
+# 로컬 개발 DB(docker-compose.yml, 5432)와 안 겹치게 DB는 5433 + 별도 볼륨
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: medinfo
+      POSTGRES_USER: medinfo
+      POSTGRES_PASSWORD: medinfo-local
+      TZ: Asia/Seoul
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-prodlocal:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medinfo -d medinfo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/medinfo
+      DB_USERNAME: medinfo
+      DB_PASSWORD: medinfo-local
+      PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        BACKEND_URL: http://api:8080
+        SITE_URL: http://localhost:3000
+        SITE_INDEXING: "false"
+    environment:
+      BACKEND_URL: http://api:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata-prodlocal:

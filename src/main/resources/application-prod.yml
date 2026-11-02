@@ -1,0 +1,38 @@
+# 운영 프로필 (SPRING_PROFILES_ACTIVE=prod, Dockerfile 기본값)
+# 비밀값은 여기 쓰지 않는다 → 환경변수로 주입 (값이 없으면 기동 실패 = 설정 누락을 바로 알 수 있음)
+# 필요한 환경변수 목록: docs/deploy.md
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 3000   # 풀이 꽉 차면 3초 안에 실패 (무한 대기 → 스레드 고갈 방지)
+  lifecycle:
+    # 종료 신호(SIGTERM) 후 처리 중인 요청을 마무리할 시간. Blue/Green 전환·롤링 배포 때 요청 유실 방지
+    timeout-per-shutdown-phase: 30s
+  quartz:
+    # 비급여 상세 적재는 1~2시간짜리라 끝날 때까지 기다리지 않는다.
+    # 중간에 끊겨도 다음 실행(매시간)이 Spring Batch 체크포인트부터 이어받음 (NonpayLoadLauncher의 recover)
+    wait-for-jobs-to-complete-on-shutdown: false
+
+server:
+  shutdown: graceful
+  # ALB 뒤: X-Forwarded-For/Proto를 믿고 실제 클라이언트 IP·https를 인식
+  forward-headers-strategy: native
+
+management:
+  server:
+    # 헬스체크·Prometheus 지표는 별도 포트 → ALB 리스너에는 8080만 열어 외부에서 지표가 안 보이게
+    port: 8081
+
+logging:
+  structured:
+    format:
+      # JSON 한 줄 로그 (Loki·CloudWatch에서 필드로 검색)
+      console: ecs
+  level:
+    root: INFO
+    com.medinfo: INFO
