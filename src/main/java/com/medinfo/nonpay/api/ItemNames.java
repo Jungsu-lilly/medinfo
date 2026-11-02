@@ -38,6 +38,11 @@ final class ItemNames {
             Map.entry("수관절", "손목"), Map.entry("손목관절", "손목"), Map.entry("발목관절", "발목"),
             Map.entry("고관절", "엉덩이"), Map.entry("뇌", "뇌"));
 
+    /** 괄호 병기 없이 통째로 바꾸는 부위 (원래 말이 일반인에게 뜻이 안 통하는 경우). 키는 공백 없이 */
+    private static final Map<String, String> RENAMES = Map.of(
+            "관절외하지", "다리(관절 외)",
+            "관절외상지", "팔(관절 외)");
+
     /** 초음파 항목명 끝에 붙는 등급·범위 (부위가 아님) */
     private static final Set<String> US_QUALIFIERS = Set.of("단순", "전문", "정밀");
 
@@ -49,6 +54,7 @@ final class ItemNames {
      * 심평원 항목명(분류/세부/…) → 화면 이름. 실제 이름 예:
      *   자기공명영상진단료(MRI-기본검사)/근골격계-슬관절/일반                → 무릎(슬관절) MRI
      *   자기공명영상진단료(MRI-기본검사)/근골격계-견관절/조영제 주입 전·후 촬영 판독 → 어깨(견관절) MRI (조영제)
+     *   자기공명영상진단료(MRI-기본검사)/근골격계-관절외 하지/일반           → 다리(관절 외) MRI
      *   초음파검사료(진단초음파)/두경부-경부 초음파/갑상선·부갑상선          → 갑상선·부갑상선 초음파
      *   초음파검사료(진단초음파)/근골격, 연부-연부조직 초음파/일반           → 연부조직 초음파
      *   초음파검사료(기본초음파)/단순초음파/Ⅱ                              → 단순초음파 Ⅱ
@@ -144,6 +150,10 @@ final class ItemNames {
     }
 
     private static String withAlias(String part) {
+        String renamed = RENAMES.get(part.replace(" ", ""));
+        if (renamed != null) {
+            return renamed;
+        }
         String alias = BODY_PARTS.get(part);
         return alias == null || alias.equals(part) ? part : alias + "(" + part + ")";
     }
@@ -175,9 +185,29 @@ final class ItemNames {
             List<String> alts = new ArrayList<>();
             alts.add(word);
             alts.addAll(SYNONYMS.getOrDefault(word.toLowerCase(Locale.ROOT), List.of()));
+            alts.addAll(bodyPartTerms(word));
             out.add(alts.stream().distinct().toList());
         }
         return out;
+    }
+
+    /**
+     * 화면 부위 이름 → 항목명에 쓰인 의학 용어. "무릎" → 슬관절, "다리" → 하지.
+     * 항목명엔 의학 용어만 있어서 이게 없으면 "무릎 MRI"가 0건
+     */
+    private static List<String> bodyPartTerms(String word) {
+        List<String> out = new ArrayList<>();
+        BODY_PARTS.forEach((term, plain) -> {
+            if (plain.equals(word) && !term.equals(word)) {
+                out.add(term);
+            }
+        });
+        if (word.equals("다리")) {
+            out.add("하지");
+        } else if (word.equals("팔")) {
+            out.add("상지");
+        }
+        return out.stream().sorted().toList();
     }
 
     /** 검색어 단어들에 걸린 제외어 (하나라도 들어간 항목은 뺀다) */

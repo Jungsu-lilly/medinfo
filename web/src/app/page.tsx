@@ -93,7 +93,7 @@ async function Popular() {
             <span className={styles.popMain}>
               <span className={styles.popName}>{p.name}</span>
               <span className="meta">
-                {p.group ? `${p.group} · ` : ""}병원 {p.stats.hospitalCount}곳
+                {p.vaccine && p.group ? `${p.group} · ` : ""}병원 {p.stats.hospitalCount}곳
               </span>
             </span>
             <span className={styles.popPrice}>
