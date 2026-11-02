@@ -3,9 +3,10 @@ import type { Metadata, Viewport } from "next";
 // dynamic-subset: 글자 범위별로 92개 조각으로 나뉘어 있어 화면에 쓰인 글자 조각만 내려받음
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
+import { Suspense } from "react";
+import BottomNav, { BottomNavView } from "@/components/BottomNav";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
-import TopNav from "@/components/TopNav";
+import TopNav, { TopNavView } from "@/components/TopNav";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -27,9 +28,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko">
       <body>
-        <TopNav />
+        <Suspense fallback={<TopNavView pathname={null} />}>
+          <TopNav />
+        </Suspense>
         <div className="app">{children}</div>
-        <BottomNav />
+        <Suspense fallback={<BottomNavView pathname={null} />}>
+          <BottomNav />
+        </Suspense>
         <ServiceWorkerRegister />
       </body>
     </html>

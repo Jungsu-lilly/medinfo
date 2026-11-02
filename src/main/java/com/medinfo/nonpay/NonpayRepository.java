@@ -131,6 +131,19 @@ public class NonpayRepository {
         return n == null ? 0 : n;
     }
 
+    /**
+     * 항목별 가격 통계(nonpay_price_stats) 다시 계산. 요약 적재가 끝날 때 호출.
+     * CONCURRENTLY: 계산하는 동안에도 기존 통계로 조회가 계속 된다 (고유 인덱스 ux_price_stats 필요)
+     */
+    public void refreshStats() {
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY nonpay_price_stats");
+    }
+
+    public long countStats() {
+        Long n = jdbcTemplate.queryForObject("SELECT count(*) FROM nonpay_price_stats", Long.class);
+        return n == null ? 0 : n;
+    }
+
     /** 상세를 받을 병원 1곳 */
     public record DetailTarget(long hospitalId, String ykiho) {
     }

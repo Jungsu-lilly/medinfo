@@ -164,7 +164,7 @@ src/main/java/com/medinfo
 ├── publicdata/   공공데이터 공통: 클라이언트(타임아웃·재시도·리다이렉트), XML 파서, 한도 가드
 ├── er/           응급실 실시간 병상 수집(2분), 응급기관 목록 수집 + 매칭
 ├── hospital/     심평원 병원정보 전국 수집
-├── nonpay/       비급여 요약·상세 적재 (batch/: Spring Batch 잡, 리더·라이터, 실행기)
+├── nonpay/       비급여 요약·상세 적재 (batch/: Spring Batch 잡, 리더·라이터, 실행기), 조회 API (api/)
 ├── partition/    응급실 스냅샷 일 단위 파티션 생성·삭제
 └── config/       Quartz 스케줄, Clock(KST)
 src/main/resources/db/migration
@@ -174,6 +174,7 @@ src/main/resources/db/migration
 ├── V4__match_rules_v2.sql 정규화에 "부속" 제거 추가
 ├── V5__norm_fix_and_manual_match.sql 정규화 버그 수정, 수동 매칭 목록 테이블
 ├── V6__spring_batch_tables.sql Spring Batch 메타 테이블
+├── V7__price_api.sql 현재 가격 뷰, 항목별 가격 통계(materialized view), 병원 이름 검색 인덱스
 └── R__er_manual_match.sql 수동 매칭 목록 (내용 바뀌면 재실행)
 ```
 
@@ -186,5 +187,5 @@ src/main/resources/db/migration
 - [x] 병원정보 전국 수집(매주), 첫 기동 때 비어 있으면 즉시 실행
 - [x] 비급여 요약·상세 대량 적재 (Spring Batch, 매월 회차, 한도 초과 시 이어받기)
 - [x] 응급실 조회 API(`GET /api/er`) + Next.js 화면 4개(시안 v0.1), PWA
-- [ ] 가격·병원 조회 API (지금 화면은 예시 데이터)
+- [x] 가격·병원 조회 API (`/api/items`, `/api/items/featured`, `/api/prices/{code}`, `/api/hospitals`, `/api/hospitals/{id}`, `/api/regions`) + 화면 실데이터 연결
 - [ ] Dockerfile, CI/CD, Terraform 이식 (Flicker)

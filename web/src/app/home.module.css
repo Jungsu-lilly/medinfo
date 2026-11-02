@@ -150,3 +150,15 @@
     overflow-x: visible;
   }
 }
+
+.loading {
+  padding: 16px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.popName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

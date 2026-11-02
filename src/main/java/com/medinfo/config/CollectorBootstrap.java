@@ -60,8 +60,12 @@ public class CollectorBootstrap implements ApplicationRunner {
             scheduler.triggerJob(QuartzConfig.ER_HOSPITAL_SYNC);
         }
         if (nonpayRepository.countSummary() == 0) {
-            log.info("비급여 가격이 비어 있어 비급여 적재를 바로 시작합니다 (요약 수 분 + 상세 1~2시간)");
+            log.info("비급여 가격이 비어 있어 비급여 적재를 바로 시작합니다 (요약 20~30분 + 상세 1~2시간)");
             scheduler.triggerJob(QuartzConfig.NONPAY_LOAD);
+        } else if (nonpayRepository.countStats() == 0) {
+            // 가격은 있는데 통계가 비어 있음 (통계 테이블이 나중에 생긴 경우 등) → 1회 계산 (수 초)
+            log.info("비급여 가격 통계를 계산합니다");
+            nonpayRepository.refreshStats();
         }
     }
 }
