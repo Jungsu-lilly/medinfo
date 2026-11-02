@@ -32,7 +32,8 @@ dependencies {
     // 스케줄러: Quartz (JDBC JobStore, 클러스터 모드)
     implementation 'org.springframework.boot:spring-boot-starter-quartz'
 
-    // Spring Batch는 다음 단계(비급여 대량 적재)에서 추가
+    // Spring Batch: 비급여 대량 적재 (청크 커밋 + 재시작). 메타 테이블은 JDBC(PostgreSQL)
+    implementation 'org.springframework.boot:spring-boot-starter-batch-jdbc'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

@@ -12,6 +12,14 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  batch:
+    job:
+      # 기동할 때 잡을 자동 실행하지 않음. 실행은 Quartz → NonpayLoadLauncher가 판단
+      enabled: false
+    jdbc:
+      # Batch 메타 테이블은 Flyway(V6)로 관리
+      initialize-schema: never
+
   quartz:
     job-store-type: jdbc
     # Quartz 기본 스크립트는 재시작마다 테이블을 DROP → 트리거가 날아감. Flyway(V2)로 관리
@@ -46,6 +54,9 @@ collector:
   # 응급기관 목록 + 매칭: 매일 03:40 (1회 호출)
   er-hospital-sync:
     cron: "0 40 3 * * ?"
+  # 비급여 요약·상세 적재: 매시간 20분에 확인 (이번 달 회차가 끝났으면 호출 없이 종료, 실패했으면 이어받기)
+  nonpay:
+    cron: "0 20 * * * ?"
   # 응급기관↔병원 매칭 규칙 (ErHospitalMatcher 주석 참고)
   er-match:
     radius-meters: 300            # 1단계 반경

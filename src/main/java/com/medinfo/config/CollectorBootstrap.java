@@ -3,6 +3,7 @@ package com.medinfo.config;
 import com.medinfo.er.ErHospitalMatcher;
 import com.medinfo.er.ErHospitalRepository;
 import com.medinfo.hospital.HospitalRepository;
+import com.medinfo.nonpay.NonpayRepository;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
  * 처음 기동했을 때 기준 데이터가 비어 있으면 주기를 기다리지 않고 바로 한 번 돌린다.
  * Quartz에 "지금 1회 실행"으로 넣기 때문에 기동이 막히지 않고, 클러스터에서도 한 인스턴스만 실행한다.
  * 병원 데이터가 이미 있으면 응급기관 매칭만 다시 돌린다(규칙 변경 반영).
+ * 비급여 가격이 비어 있으면 매시간 실행을 기다리지 않고 바로 적재를 시작한다.
  */
 @Component
 public class CollectorBootstrap implements ApplicationRunner {
@@ -26,16 +28,18 @@ public class CollectorBootstrap implements ApplicationRunner {
     private final HospitalRepository hospitalRepository;
     private final ErHospitalRepository erHospitalRepository;
     private final ErHospitalMatcher matcher;
+    private final NonpayRepository nonpayRepository;
     private final boolean enabled;
 
     public CollectorBootstrap(Scheduler scheduler, HospitalRepository hospitalRepository,
                               ErHospitalRepository erHospitalRepository,
-                              ErHospitalMatcher matcher,
+                              ErHospitalMatcher matcher, NonpayRepository nonpayRepository,
                               @Value("${collector.bootstrap.enabled:true}") boolean enabled) {
         this.scheduler = scheduler;
         this.hospitalRepository = hospitalRepository;
         this.erHospitalRepository = erHospitalRepository;
         this.matcher = matcher;
+        this.nonpayRepository = nonpayRepository;
         this.enabled = enabled;
     }
 
@@ -54,6 +58,10 @@ public class CollectorBootstrap implements ApplicationRunner {
         if (erHospitalRepository.count() == 0 || erHospitalRepository.countWithoutLocation() > 0) {
             log.info("응급기관 위치 정보가 없어 응급기관 목록 동기화를 바로 시작합니다");
             scheduler.triggerJob(QuartzConfig.ER_HOSPITAL_SYNC);
+        }
+        if (nonpayRepository.countSummary() == 0) {
+            log.info("비급여 가격이 비어 있어 비급여 적재를 바로 시작합니다 (요약 수 분 + 상세 1~2시간)");
+            scheduler.triggerJob(QuartzConfig.NONPAY_LOAD);
         }
     }
 }

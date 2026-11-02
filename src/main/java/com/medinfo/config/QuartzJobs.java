@@ -3,6 +3,7 @@ package com.medinfo.config;
 import com.medinfo.er.ErBedCollector;
 import com.medinfo.er.ErHospitalSyncService;
 import com.medinfo.hospital.HospitalSyncService;
+import com.medinfo.nonpay.batch.NonpayLoadLauncher;
 import com.medinfo.partition.SnapshotPartitionManager;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.JobExecutionContext;
@@ -95,6 +96,26 @@ public final class QuartzJobs {
                 service.sync();
             } catch (RuntimeException e) {
                 log.error("응급기관 목록 동기화 실패: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /** 비급여 적재: 매시간 확인만 하고, 이번 달 회차가 끝나 있으면 바로 종료 (API 호출 0) */
+    @DisallowConcurrentExecution
+    public static class NonpayLoadJob extends QuartzJobBean {
+
+        private final NonpayLoadLauncher launcher;
+
+        public NonpayLoadJob(NonpayLoadLauncher launcher) {
+            this.launcher = launcher;
+        }
+
+        @Override
+        protected void executeInternal(JobExecutionContext context) {
+            try {
+                launcher.runIfDue();
+            } catch (RuntimeException e) {
+                log.error("비급여 적재 실행 실패: {}", e.getMessage(), e);
             }
         }
     }

@@ -14,7 +14,7 @@
 | 스키마 관리 | Flyway | `src/main/resources/db/migration` |
 | 스케줄러 | Quartz (JDBC, 클러스터 모드) | Blue/Green 중 중복 실행 방지 |
 | 지표 | Actuator + Micrometer Prometheus | `/actuator/prometheus` |
-| 대량 적재 | Spring Batch | 다음 단계에서 추가 |
+| 대량 적재 | Spring Batch 6 (JDBC 메타 테이블) | 비급여 적재. 한도 넘으면 다음 날 이어받기 |
 
 ## 로컬 세팅 (처음 한 번)
 
@@ -95,7 +95,23 @@ SELECT match_method, count(*) FROM er_hospital GROUP BY 1;
 SELECT hpid, name, norm_hosp_name(name) AS 정리된이름, addr
 FROM er_hospital WHERE hospital_id IS NULL ORDER BY name;
 
+-- 비급여 적재 진행 (요약 전국 약 19만 건 → 상세 병원 수천 곳)
+SELECT count(*) AS 요약, count(DISTINCT hospital_id) AS 병원, count(DISTINCT npay_cd) AS 항목 FROM nonpay_price_summary;
+SELECT count(*) AS 상세, count(DISTINCT hospital_id) AS 병원 FROM nonpay_price_detail;
+
+-- 비급여 배치 실행 이력 (상태·읽은 건수·체크포인트)
+SELECT i.job_name, p.parameter_value AS 회차, e.status, e.start_time, e.end_time, e.exit_message
+FROM batch_job_execution e
+JOIN batch_job_instance i USING (job_instance_id)
+LEFT JOIN batch_job_execution_params p ON p.job_execution_id = e.job_execution_id AND p.parameter_name = 'runKey'
+ORDER BY e.job_execution_id DESC;
+SELECT step_name, status, read_count, write_count, commit_count, rollback_count FROM batch_step_execution ORDER BY step_execution_id DESC;
+
 ```
+
+**비급여 적재**는 매시간 20분에 확인한다. 이번 달 회차(`runKey=2026-11`)가 끝나 있으면 API 호출 없이 바로 종료,
+실패해 있으면(한도 초과 `[22]`·차단, 네트워크) 마지막 커밋 위치부터 이어서 받는다. 첫 기동 때 비어 있으면 바로 시작.
+처음 한 번은 요약 수 분 + 상세 1~2시간 걸린다 (`비급여 상세 진행` 로그).
 
 **수동 매칭**은 DB에 직접 UPDATE하지 말고 `src/main/resources/db/migration/R__er_manual_match.sql`에 한 줄 추가한다.
 그래야 로컬·운영 DB 모두 같은 결과가 나온다. 파일이 바뀌면 다음 기동 때 Flyway가 다시 실행하고, 매칭기가 목록을 우선 적용한다.
@@ -148,6 +164,7 @@ src/main/java/com/medinfo
 ├── publicdata/   공공데이터 공통: 클라이언트(타임아웃·재시도·리다이렉트), XML 파서, 한도 가드
 ├── er/           응급실 실시간 병상 수집(2분), 응급기관 목록 수집 + 매칭
 ├── hospital/     심평원 병원정보 전국 수집
+├── nonpay/       비급여 요약·상세 적재 (batch/: Spring Batch 잡, 리더·라이터, 실행기)
 ├── partition/    응급실 스냅샷 일 단위 파티션 생성·삭제
 └── config/       Quartz 스케줄, Clock(KST)
 src/main/resources/db/migration
@@ -156,6 +173,7 @@ src/main/resources/db/migration
 ├── V3__hospital_sync.sql 병원 전화·홈페이지 컬럼, 기관명 정규화 함수 norm_hosp_name
 ├── V4__match_rules_v2.sql 정규화에 "부속" 제거 추가
 ├── V5__norm_fix_and_manual_match.sql 정규화 버그 수정, 수동 매칭 목록 테이블
+├── V6__spring_batch_tables.sql Spring Batch 메타 테이블
 └── R__er_manual_match.sql 수동 매칭 목록 (내용 바뀌면 재실행)
 ```
 
@@ -166,7 +184,7 @@ src/main/resources/db/migration
 - [x] 스냅샷 파티션 관리 (7일 보관)
 - [x] 응급의료기관 목록 수집(매일) + hpid↔ykiho 자동 매칭 3단계 (300m+유사도 0.5 / 2km+이름 일치 / 100m+이름 포함), 기동 때 재매칭
 - [x] 병원정보 전국 수집(매주), 첫 기동 때 비어 있으면 즉시 실행
-- [ ] 비급여 요약·상세 대량 적재 (Spring Batch)
+- [x] 비급여 요약·상세 대량 적재 (Spring Batch, 매월 회차, 한도 초과 시 이어받기)
 - [x] 응급실 조회 API(`GET /api/er`) + Next.js 화면 4개(시안 v0.1), PWA
 - [ ] 가격·병원 조회 API (지금 화면은 예시 데이터)
 - [ ] Dockerfile, CI/CD, Terraform 이식 (Flicker)
