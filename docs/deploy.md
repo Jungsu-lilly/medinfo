@@ -41,7 +41,7 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 | 이름 | 빌드 | 실행 | 설명 |
 |---|---|---|---|
 | `BACKEND_URL` | ✔ | ✔ | web → api 내부 주소 (예: `http://api.internal:8080`, 내부 ALB 또는 서비스 디스커버리) |
-| `SITE_URL` | ✔ | | `https://도메인` (공유 미리보기·robots.txt) |
+| `SITE_URL` | ✔ | | `https://xn--639ao13amqh.com` (병원값.com의 퓨니코드. 공유 미리보기·robots.txt) |
 | `SITE_INDEXING` | ✔ | | 공개 전 `false`(검색엔진 차단), 오픈할 때 `true`로 다시 빌드 |
 
 ## 3. Blue/Green 배포 때 앱 쪽에서 맞춰둔 것
@@ -82,9 +82,17 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 - api 로그는 **JSON 한 줄**(ECS 형식, stdout) → CloudWatch Logs / Loki에서 필드로 검색
 - 지표: `:8081/actuator/prometheus`. 수집 관련 주요 지표는 README 참고 (`collector_last_success_epoch_seconds`, `public_api_quota_used` …)
 
-## 8. 공개(오픈) 체크리스트
+## 8. 도메인: 병원값.com (2026-11-02 확정)
 
-- [ ] 서비스 이름·도메인 확정 → `web/src/lib/site.ts`, HTTPS 인증서(ACM)
+한글 도메인(IDN)은 시스템 안에서는 **퓨니코드** `xn--639ao13amqh.com`으로 다룬다.
+- Route 53 호스팅 영역, ACM 인증서(`xn--639ao13amqh.com` + `www.`), ALB 리스너 규칙, `SITE_URL` 모두 퓨니코드
+- 브라우저 주소창에는 한글(병원값.com)로 보임. 카카오톡 등 일부 앱은 링크를 퓨니코드로 보여줄 수 있음
+- 문의용 이메일은 한글 도메인 주소가 깨지는 메일 서비스가 있어 일반 메일 주소를 쓰는 게 안전
+
+## 9. 공개(오픈) 체크리스트
+
+- [x] 서비스 이름·도메인 확정 (병원값 / 병원값.com)
+- [ ] HTTPS 인증서(ACM, 퓨니코드 도메인)
 - [ ] 개인정보처리방침 내용 채우기 (`/privacy`)
 - [ ] `SITE_INDEXING=true`로 web 다시 빌드·배포
 - [ ] 구글 서치콘솔·네이버 서치어드바이저 등록, sitemap
