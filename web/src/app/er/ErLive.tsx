@@ -3,18 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, LocateIcon, PhoneIcon } from "@/components/Icons";
-import {
-  DEFAULT_POINT,
-  erQuery,
-  INACCURATE_METERS,
-  loadArea,
-  saveArea,
-  type ErArea,
-  type ErItem,
-  type ErRegion,
-  type ErStatus,
-} from "@/lib/er";
+import LocationPicker, { RoughNotice } from "@/components/location/LocationPicker";
+import { DEFAULT_POINT, erQuery, type ErItem, type ErStatus } from "@/lib/er";
 import { distance, hhmm } from "@/lib/format";
+import { loadArea, loadLocation, useLocate } from "@/lib/location";
 import styles from "./er.module.css";
 
 const REFRESH_MS = 120_000; // 수집 주기와 같은 2분
@@ -26,14 +18,9 @@ export default function ErLive({ initial }: { initial: ErStatus | null }) {
   const [error, setError] = useState(initial === null);
   const [point, setPoint] = useState<Point>(DEFAULT_POINT);
   const [onlyOpen, setOnlyOpen] = useState(false);
-  const [locating, setLocating] = useState(false);
   /** 기준 위치 고르기 창 */
   const [picking, setPicking] = useState(false);
-  const [regions, setRegions] = useState<ErRegion[] | null>(null);
-  const [regionsError, setRegionsError] = useState(false);
-  const [sido, setSido] = useState("");
-  /** 브라우저 위치가 부정확할 때(오차 m). PC는 IP로 추정해서 수 km 틀리기도 한다 */
-  const [roughMeters, setRoughMeters] = useState<number | null>(null);
+  const { state, roughMeters, locate, reset } = useLocate();
   const pointRef = useRef(point);
   useEffect(() => {
     pointRef.current = point;
@@ -50,15 +37,24 @@ export default function ErLive({ initial }: { initial: ErStatus | null }) {
     }
   }, []);
 
-  // 전에 직접 고른 지역이 있으면 그 기준으로 다시 연다
+  const moveTo = useCallback(
+    (p: Point) => {
+      setPoint(p);
+      setPicking(false);
+      reset();
+      void load(p);
+    },
+    [load, reset],
+  );
+
+  // 30분 안에 받은 내 위치, 없으면 직접 고른 지역 기준으로 다시 연다
   useEffect(() => {
+    const c = loadLocation();
     const saved = loadArea();
-    if (!saved) return;
-    const p = { lat: saved.lat, lng: saved.lng, label: saved.label };
-    setPoint(p); // eslint-disable-line react-hooks/set-state-in-effect -- 저장소 값은 화면이 뜬 뒤에만 읽을 수 있음
-    setSido(saved.sido);
-    void load(p);
-  }, [load]);
+    if (c)
+      moveTo({ ...c, label: "내 위치" }); // eslint-disable-line react-hooks/set-state-in-effect -- 저장소 값은 화면이 뜬 뒤에만 읽을 수 있음
+    else if (saved) moveTo({ lat: saved.lat, lng: saved.lng, label: saved.label });
+  }, [moveTo]);
 
   // 2분마다 갱신. 탭이 백그라운드면 건너뛰고, 다시 보이면 바로 한 번 갱신
   useEffect(() => {
@@ -73,50 +69,8 @@ export default function ErLive({ initial }: { initial: ErStatus | null }) {
     };
   }, [load]);
 
-  const openPicker = async () => {
-    setPicking(true);
-    if (regions) return;
-    try {
-      const res = await fetch("/api/er/regions");
-      if (!res.ok) throw new Error(String(res.status));
-      setRegions((await res.json()) as ErRegion[]);
-      setRegionsError(false);
-    } catch {
-      setRegionsError(true);
-    }
-  };
-
-  const locateMe = () => {
-    if (!("geolocation" in navigator)) return;
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const rough = pos.coords.accuracy > INACCURATE_METERS;
-        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude, label: rough ? "내 위치(대략)" : "내 위치" };
-        setPoint(p);
-        setLocating(false);
-        setRoughMeters(rough ? Math.round(pos.coords.accuracy) : null);
-        if (rough) void openPicker();
-        else setPicking(false);
-        void load(p);
-      },
-      () => setLocating(false),
-      // 응급실은 거리가 중요해서 GPS까지 쓴다 (핸드폰). GPS가 없는 PC에선 효과 없음
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
-  };
-
-  const pickArea = (area: ErArea) => {
-    const p = { lat: area.lat, lng: area.lng, label: area.name };
-    setPoint(p);
-    setRoughMeters(null);
-    setPicking(false);
-    saveArea({ sido, sggu: area.code, lat: area.lat, lng: area.lng, label: area.name });
-    void load(p);
-  };
-
   const items = (data?.items ?? []).filter((i) => !onlyOpen || ((i.available ?? 0) > 0 && !i.stale));
-  const sidoRegion = regions?.find((r) => r.code === sido);
+  const quickRough = state === "rough" && roughMeters !== null;
 
   return (
     <>
@@ -124,8 +78,13 @@ export default function ErLive({ initial }: { initial: ErStatus | null }) {
         <button
           type="button"
           className={styles.where}
-          onClick={() => (picking ? setPicking(false) : void openPicker())}
-          aria-expanded={picking}
+          onClick={() => {
+            if (picking || quickRough) {
+              setPicking(false);
+              reset();
+            } else setPicking(true);
+          }}
+          aria-expanded={picking || quickRough}
           aria-controls="er-picker"
         >
           {point.label} 기준 가까운 순
@@ -137,72 +96,34 @@ export default function ErLive({ initial }: { initial: ErStatus | null }) {
         </label>
       </div>
 
-      {roughMeters !== null && (
-        <p className={styles.rough} role="status">
-          위치가 정확하지 않아요 (오차 약 {distance(roughMeters)}). 컴퓨터에서는 위치가 몇 km씩 틀리기도 해요. 아래에서
-          지역을 골라 주세요.
-        </p>
-      )}
-
-      {picking && (
-        <div id="er-picker" className={styles.picker}>
-          <button type="button" className={styles.pickerLocate} onClick={locateMe} disabled={locating}>
-            <LocateIcon />
-            {locating ? "위치 확인 중…" : "내 위치 사용"}
-          </button>
-          <div className={styles.pickerSelects}>
-            <label className="sr-only" htmlFor="er-sido">
-              시도
-            </label>
-            <select
-              id="er-sido"
-              className={styles.select}
-              value={sido}
-              onChange={(e) => setSido(e.target.value)}
-              disabled={!regions}
-            >
-              <option value="">{regions ? "시도 선택" : regionsError ? "불러오지 못했어요" : "불러오는 중…"}</option>
-              {(regions ?? []).map((r) => (
-                <option key={r.code} value={r.code}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-            <label className="sr-only" htmlFor="er-sggu">
-              시군구
-            </label>
-            <select
-              id="er-sggu"
-              className={styles.select}
-              value=""
-              onChange={(e) => {
-                const area = sidoRegion?.sggu.find((g) => g.code === e.target.value);
-                if (area) pickArea(area);
-              }}
-              disabled={!sidoRegion}
-            >
-              <option value="">시군구 선택</option>
-              {(sidoRegion?.sggu ?? []).map((g) => (
-                <option key={g.code} value={g.code}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className={styles.pickerNote}>시군구를 고르면 그 지역 중심에서 가까운 순으로 보여줘요.</p>
+      {(picking || quickRough) && (
+        <div className={styles.pickerWrap}>
+          {quickRough && <RoughNotice meters={roughMeters} />}
+          <LocationPicker
+            id="er-picker"
+            onCoords={(c) => moveTo({ ...c, label: "내 위치" })}
+            onArea={(a) => moveTo({ lat: a.lat, lng: a.lng, label: a.label })}
+          />
         </div>
       )}
 
-      {!picking && !point.label.startsWith("내 위치") && (
-        <button type="button" className={styles.locate} onClick={locateMe} disabled={locating}>
+      {!picking && !quickRough && point.label !== "내 위치" && (
+        <button
+          type="button"
+          className={styles.locate}
+          onClick={() => locate((c) => moveTo({ ...c, label: "내 위치" }))}
+          disabled={state === "locating"}
+        >
           <LocateIcon />
-          {locating ? "위치 확인 중…" : "내 위치로 다시 찾기"}
+          {state === "locating" ? "위치 확인 중…" : state === "denied" ? "위치 권한이 필요해요" : "내 위치로 다시 찾기"}
         </button>
       )}
 
       {error && (
         <p className={styles.error} role="alert">
-          {data ? "최신 정보를 불러오지 못했어요. 아래는 마지막으로 받은 정보예요." : "응급실 정보를 불러오지 못했어요."}{" "}
+          {data
+            ? "최신 정보를 불러오지 못했어요. 아래는 마지막으로 받은 정보예요."
+            : "응급실 정보를 불러오지 못했어요."}{" "}
           <button type="button" onClick={() => void load(point)}>
             다시 시도
           </button>
@@ -236,9 +157,21 @@ function ErRow({ item }: { item: ErItem }) {
 
   let note: { text: string; tone: "normal" | "red" | "amber" };
   if (!known) note = { text: "병상 정보 없음 · 전화로 확인", tone: "normal" };
-  else if (item.stale) note = { text: `${item.minutesSinceInput}분째 갱신 안 됨 · 전화 확인 필요`, tone: "amber" };
-  else if (over > 0) note = { text: `정원 초과(${over}명) · ${minutesText(item.minutesSinceInput)}`, tone: "red" };
-  else if (full) note = { text: `지금 병상 없음 · ${minutesText(item.minutesSinceInput)}`, tone: "red" };
+  else if (item.stale)
+    note = {
+      text: `${item.minutesSinceInput}분째 갱신 안 됨 · 전화 확인 필요`,
+      tone: "amber",
+    };
+  else if (over > 0)
+    note = {
+      text: `정원 초과(${over}명) · ${minutesText(item.minutesSinceInput)}`,
+      tone: "red",
+    };
+  else if (full)
+    note = {
+      text: `지금 병상 없음 · ${minutesText(item.minutesSinceInput)}`,
+      tone: "red",
+    };
   else note = { text: minutesText(item.minutesSinceInput), tone: "normal" };
 
   const nameBlock = (

@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { LocateIcon } from "@/components/Icons";
 import type { Region } from "@/lib/api";
+import { RoughNotice } from "@/components/location/LocationPicker";
 import { coordsQuery, useLocate } from "@/lib/location";
 import styles from "./price.module.css";
 
@@ -20,59 +21,68 @@ export default function RegionPicker({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { state, locate } = useLocate();
+  const { state, roughMeters, locate } = useLocate();
   const current = regions.find((r) => r.code === sido);
 
   const go = (params: Record<string, string>) => router.push(`${pathname}?${new URLSearchParams(params)}`);
 
   return (
-    <div className={styles.picker}>
-      <label className="sr-only" htmlFor="sido">
-        시도
-      </label>
-      <select
-        id="sido"
-        className={styles.select}
-        value={nearMe ? "" : (sido ?? "")}
-        onChange={(e) => e.target.value && go({ sido: e.target.value })}
-      >
-        {nearMe && <option value="">내 위치 5km</option>}
-        {regions.map((r) => (
-          <option key={r.code} value={r.code}>
-            {r.name}
-          </option>
-        ))}
-      </select>
-      {!nearMe && current && (
-        <>
-          <label className="sr-only" htmlFor="sggu">
-            시군구
-          </label>
-          <select
-            id="sggu"
-            className={styles.select}
-            value={sggu ?? ""}
-            onChange={(e) => go(e.target.value ? { sido: current.code, sggu: e.target.value } : { sido: current.code })}
-          >
-            <option value="">전체</option>
-            {current.sggu.map((g) => (
-              <option key={g.code} value={g.code}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </>
+    <>
+      <div className={styles.picker}>
+        <label className="sr-only" htmlFor="sido">
+          시도
+        </label>
+        <select
+          id="sido"
+          className={styles.select}
+          value={nearMe ? "" : (sido ?? "")}
+          onChange={(e) => e.target.value && go({ sido: e.target.value })}
+        >
+          {nearMe && <option value="">내 위치 5km</option>}
+          {regions.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+        {!nearMe && current && (
+          <>
+            <label className="sr-only" htmlFor="sggu">
+              시군구
+            </label>
+            <select
+              id="sggu"
+              className={styles.select}
+              value={sggu ?? ""}
+              onChange={(e) =>
+                go(e.target.value ? { sido: current.code, sggu: e.target.value } : { sido: current.code })
+              }
+            >
+              <option value="">전체</option>
+              {current.sggu.map((g) => (
+                <option key={g.code} value={g.code}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <button
+          type="button"
+          className={styles.locateBtn}
+          onClick={() => locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`))}
+          disabled={state === "locating"}
+          aria-pressed={nearMe}
+        >
+          <LocateIcon />
+          {state === "locating" ? "확인 중…" : state === "denied" ? "위치 권한 필요" : "내 위치"}
+        </button>
+      </div>
+      {state === "rough" && roughMeters !== null && (
+        <div style={{ padding: "0 16px 4px" }}>
+          <RoughNotice meters={roughMeters} hint="위에서 시도·시군구를 골라 주세요." />
+        </div>
       )}
-      <button
-        type="button"
-        className={styles.locateBtn}
-        onClick={() => locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`))}
-        disabled={state === "locating"}
-        aria-pressed={nearMe}
-      >
-        <LocateIcon />
-        {state === "locating" ? "확인 중…" : state === "denied" ? "위치 권한 필요" : "내 위치"}
-      </button>
-    </div>
+    </>
   );
 }
