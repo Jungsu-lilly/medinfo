@@ -28,7 +28,7 @@ class PriceServiceTest {
 
         assertThat(groups).extracting(ItemGroup::name).containsExactly("상급병실료", "검체검사료", "기타");
         assertThat(groups.get(0).items()).hasSize(2);
-        assertThat(groups.get(0).items().get(0).std()).isEqualTo("1인실");
+        assertThat(groups.get(0).items().get(0).std()).isEqualTo("상급병실료 1인실");
         assertThat(groups.get(0).items().get(0).regionMedian()).isEqualTo(300000);
         // 같은 시도 병원이 3곳 미만이면 중간값을 보여주지 않는다
         assertThat(groups.get(0).items().get(1).regionMedian()).isNull();

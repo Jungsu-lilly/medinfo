@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import AdSlot from "@/components/AdSlot";
 import type { PriceRow } from "@/lib/api";
 import { diffFromMedian, distance, won } from "@/lib/format";
+import { coordsQuery, useLocate } from "@/lib/location";
 import styles from "./price.module.css";
 
 const PAGE = 10;
@@ -12,8 +14,27 @@ const AD_AFTER = 3; // 광고는 3번째 결과 뒤 고정 칸. 병원 순위에
 /** 종류 필터 순서. 데이터에 있는 종류만 보여준다 */
 const KIND_ORDER = ["상급종합", "종합병원", "병원", "요양병원", "치과병원", "한방병원", "정신병원"];
 
-export default function PriceList({ rows, median, byDistance }: { rows: PriceRow[]; median: number; byDistance: boolean }) {
-  const [sort, setSort] = useState<"price" | "distance">("price");
+export default function PriceList({
+  rows,
+  median,
+  byDistance,
+  initialSort,
+}: {
+  rows: PriceRow[];
+  median: number;
+  byDistance: boolean;
+  initialSort: "price" | "distance";
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { state, locate } = useLocate();
+  const [sort, setSort] = useState<"price" | "distance">(byDistance ? initialSort : "price");
+
+  // 가까운 순은 내 위치가 있어야 한다. 아직 지역 기준이면 위치를 받아 내 위치 기준으로 다시 연다
+  const sortByDistance = () => {
+    if (byDistance) return setSort("distance");
+    locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`));
+  };
   const [kind, setKind] = useState("전체");
   const [shown, setShown] = useState(PAGE);
 
@@ -40,16 +61,14 @@ export default function PriceList({ rows, median, byDistance }: { rows: PriceRow
   return (
     <>
       <div className={styles.controls}>
-        {byDistance && (
-          <div role="group" aria-label="정렬" className={styles.segment}>
-            <button type="button" aria-pressed={sort === "price"} onClick={() => setSort("price")}>
-              가격 낮은 순
-            </button>
-            <button type="button" aria-pressed={sort === "distance"} onClick={() => setSort("distance")}>
-              가까운 순
-            </button>
-          </div>
-        )}
+        <div role="group" aria-label="정렬" className={styles.segment}>
+          <button type="button" aria-pressed={sort === "price"} onClick={() => setSort("price")}>
+            가격 낮은 순
+          </button>
+          <button type="button" aria-pressed={sort === "distance"} onClick={sortByDistance} disabled={state === "locating"}>
+            {state === "locating" ? "위치 확인 중…" : state === "denied" ? "위치 권한 필요" : "가까운 순"}
+          </button>
+        </div>
         {kinds.length > 0 && (
           <div role="group" aria-label="병원 종류" className={styles.chips}>
             {kinds.map((k) => (
