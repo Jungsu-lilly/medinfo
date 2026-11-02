@@ -148,3 +148,17 @@
   font-size: 14px;
   color: var(--muted);
 }
+
+.notice {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--soft);
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+}
+
+.itemName {
+  word-break: break-all;
+}

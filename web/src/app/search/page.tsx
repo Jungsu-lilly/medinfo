@@ -3,13 +3,16 @@ import Link from "next/link";
 import { Suspense } from "react";
 import BackHeader from "@/components/BackHeader";
 import { SearchIcon } from "@/components/Icons";
+import { searchItems } from "@/lib/api";
 import { manwon } from "@/lib/format";
-import { KEYWORDS, POPULAR } from "@/lib/sample-data";
+import { KEYWORDS } from "@/lib/guides";
 import styles from "../home.module.css";
 
 export const metadata: Metadata = { title: "검색", robots: { index: false } };
 
-export default function SearchPage(props: PageProps<"/search">) {
+type Props = PageProps<"/search">;
+
+export default function SearchPage(props: Props) {
   return (
     <>
       <BackHeader backHref="/" title="검색" />
@@ -20,15 +23,10 @@ export default function SearchPage(props: PageProps<"/search">) {
   );
 }
 
-async function Results({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+async function Results({ searchParams }: { searchParams: Props["searchParams"] }) {
   const raw = (await searchParams).q;
-  const q = (Array.isArray(raw) ? raw[0] : raw ?? "").trim();
-  // 임시: 예시 항목 이름에서 찾기. 항목 검색 API(/api/items?q=)가 생기면 교체
-  const pool = [
-    ...POPULAR,
-    ...KEYWORDS.filter((k) => !POPULAR.some((p) => p.slug === k.slug)).map((k) => ({ slug: k.slug, name: k.label, count: 0, low: 0, high: 0 })),
-  ];
-  const results = q ? pool.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())) : [];
+  const q = (Array.isArray(raw) ? raw[0] : (raw ?? "")).trim();
+  const { data, error } = q ? await searchItems(q) : { data: null, error: false };
 
   return (
     <>
@@ -41,22 +39,38 @@ async function Results({ searchParams }: { searchParams: Promise<Record<string, 
           <input id="q" name="q" type="search" defaultValue={q} placeholder="MRI, 대상포진 예방접종, 1인실" />
         </div>
       </form>
+
+      {!q && (
+        <nav aria-label="자주 찾는 검색어" className={styles.keywords}>
+          {KEYWORDS.map((k) => (
+            <Link key={k} href={`/search?q=${encodeURIComponent(k)}`} className="chip">
+              {k}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       <section className="section" style={{ paddingTop: 4 }}>
-        {q && results.length === 0 && <p className="meta">&quot;{q}&quot;에 맞는 항목이 없어요.</p>}
+        {error && <p className="meta">검색하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}
+        {data && data.length === 0 && <p className="meta">&quot;{q}&quot;에 맞는 항목이 없어요.</p>}
+        {data && data.length > 0 && <p className="meta">전국 병원급 기준 · 병원이 많은 순</p>}
         <ul>
-          {results.map((p) => (
-            <li key={p.slug} className={styles.popRow}>
-              <Link href={`/price/${p.slug}`} className={styles.popLink}>
+          {(data ?? []).map((p) => (
+            <li key={p.code} className={styles.popRow}>
+              <Link href={`/price/${p.code}`} className={styles.popLink}>
                 <span className={styles.popMain}>
                   <span className={styles.popName}>{p.name}</span>
-                  {p.count > 0 && <span className="meta">병원 {p.count}곳</span>}
-                </span>
-                {p.count > 0 && (
-                  <span className={styles.range}>
-                    {manwon(p.low)}
-                    <span className={styles.rangeHigh}> ~ {manwon(p.high)}원</span>
+                  <span className="meta">
+                    {p.group ? `${p.group} · ` : ""}병원 {p.stats.hospitalCount}곳
                   </span>
-                )}
+                </span>
+                <span className={styles.popPrice}>
+                  <span className={styles.range}>
+                    {manwon(p.stats.low)}
+                    {p.stats.high > p.stats.low && <span className={styles.rangeHigh}> ~ {manwon(p.stats.high)}</span>}
+                    <span className={styles.rangeHigh}>원</span>
+                  </span>
+                </span>
               </Link>
             </li>
           ))}

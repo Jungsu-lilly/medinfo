@@ -34,17 +34,21 @@ class NonpayMapperTest {
         assertThat(row.urlAddr()).startsWith("https://");
     }
 
-    /** 상세 샘플은 공공데이터포털 명세의 태그로 만든 것 (실제 응답을 받으면 교체) */
+    /** 강북삼성병원 실제 응답 (2026-11-02, 3건) */
     @Test
-    void 상세_응답을_변환한다() {
+    void 상세_실제응답을_변환한다() {
         PublicDataResponse response = PublicDataXmlParser.parse(sample("nonpay_detail.xml"));
-        NonpayDetailRow row = NonpayMapper.detail(response.items().get(0)).orElseThrow();
+        NonpayDetailRow first = NonpayMapper.detail(response.items().get(0)).orElseThrow();
+        NonpayDetailRow third = NonpayMapper.detail(response.items().get(2)).orElseThrow();
 
         assertThat(response.totalCount()).isEqualTo(1277);
-        assertThat(row.sno()).isEqualTo(1);
-        assertThat(row.npayCd()).isEqualTo("ABZ010001");
-        assertThat(row.yadmNpayCdNm()).isEqualTo("1인실 입원료(일반병동)");
-        assertThat(row.curAmt()).isEqualTo(400000);
+        assertThat(response.items()).hasSize(3);
+        assertThat(first.sno()).isEqualTo(1);
+        assertThat(first.npayCd()).isEqualTo("ABZ010001");
+        assertThat(first.yadmNpayCdNm()).isEqualTo("1인실 입원료(일반병동)");
+        assertThat(first.curAmt()).isEqualTo(380000);
+        assertThat(third.yadmNpayCdNm()).isEqualTo("Influenza A&B Ag [현장검사]"); // &amp; 디코딩
+        assertThat(third.curAmt()).isEqualTo(65000);
     }
 
     @Test

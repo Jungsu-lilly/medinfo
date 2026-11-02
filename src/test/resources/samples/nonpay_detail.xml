@@ -1,31 +1,67 @@
 <response>
-<header>
-<resultCode>00</resultCode>
-<resultMsg>NORMAL SERVICE.</resultMsg>
-</header>
-<body>
-<items>
-<item>
-<adtEndDd>99991231</adtEndDd>
-<adtFrDd>20260903</adtFrDd>
-<clCd>01</clCd>
-<clCdNm>상급종합</clCdNm>
-<curAmt>400000</curAmt>
-<npayCd>ABZ010001</npayCd>
-<npayKorNm>상급병실료/1인실</npayKorNm>
-<sgguCd>110016</sgguCd>
-<sgguCdNm>종로구</sgguCdNm>
-<sidoCd>110000</sidoCd>
-<sidoCdNm>서울</sidoCdNm>
-<sno>1</sno>
-<urlAddr>https://main.kbsmc.co.kr/main/nonpayment/list.do</urlAddr>
-<yadmNm>강북삼성병원</yadmNm>
-<yadmNpayCdNm>1인실 입원료(일반병동)</yadmNpayCdNm>
-<ykiho>JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ3OSQ0NjEwMDIjNjEjJDEjJDQjJDgz</ykiho>
-</item>
-</items>
-<numOfRows>1</numOfRows>
-<pageNo>1</pageNo>
-<totalCount>1277</totalCount>
-</body>
+    <header>
+        <resultCode>00</resultCode>
+        <resultMsg>NORMAL SERVICE.</resultMsg>
+    </header>
+    <body>
+        <items>
+            <item>
+                <adtEndDd>99991231</adtEndDd>
+                <adtFrDd>20260903</adtFrDd>
+                <clCd>01</clCd>
+                <clCdNm>상급종합</clCdNm>
+                <curAmt>380000</curAmt>
+                <npayCd>ABZ010001</npayCd>
+                <npayKorNm>상급병실료/1인실</npayKorNm>
+                <sgguCd>110016</sgguCd>
+                <sgguCdNm>종로구</sgguCdNm>
+                <sidoCd>110000</sidoCd>
+                <sidoCdNm>서울</sidoCdNm>
+                <sno>1</sno>
+                <urlAddr>https://main.kbsmc.co.kr/main/nonpayment/list.do</urlAddr>
+                <yadmNm>강북삼성병원</yadmNm>
+                <yadmNpayCdNm>1인실 입원료(일반병동)</yadmNpayCdNm>
+                <ykiho>JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ3OSQ0NjEwMDIjNjEjJDEjJDQjJDgz</ykiho>
+            </item>
+            <item>
+                <adtEndDd>99991231</adtEndDd>
+                <adtFrDd>20260903</adtFrDd>
+                <clCd>01</clCd>
+                <clCdNm>상급종합</clCdNm>
+                <curAmt>1053636</curAmt>
+                <npayCd>3Z2610000</npayCd>
+                <npayKorNm>병리검사료/양수염색체검사</npayKorNm>
+                <sgguCd>110016</sgguCd>
+                <sgguCdNm>종로구</sgguCdNm>
+                <sidoCd>110000</sidoCd>
+                <sidoCdNm>서울</sidoCdNm>
+                <sno>10</sno>
+                <urlAddr>https://main.kbsmc.co.kr/main/nonpayment/list.do</urlAddr>
+                <yadmNm>강북삼성병원</yadmNm>
+                <yadmNpayCdNm>양수염색체검사(CHROMOSOME STUDY)</yadmNpayCdNm>
+                <ykiho>JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ3OSQ0NjEwMDIjNjEjJDEjJDQjJDgz</ykiho>
+            </item>
+            <item>
+                <adtEndDd>99991231</adtEndDd>
+                <adtFrDd>20260903</adtFrDd>
+                <clCd>01</clCd>
+                <clCdNm>상급종합</clCdNm>
+                <curAmt>65000</curAmt>
+                <npayCd>CZ3940000</npayCd>
+                <npayKorNm>검체검사료/인플루엔자 A·B 바이러스항원검사[현장검사]</npayKorNm>
+                <sgguCd>110016</sgguCd>
+                <sgguCdNm>종로구</sgguCdNm>
+                <sidoCd>110000</sidoCd>
+                <sidoCdNm>서울</sidoCdNm>
+                <sno>12</sno>
+                <urlAddr>https://main.kbsmc.co.kr/main/nonpayment/list.do</urlAddr>
+                <yadmNm>강북삼성병원</yadmNm>
+                <yadmNpayCdNm>Influenza A&amp;B Ag [현장검사]</yadmNpayCdNm>
+                <ykiho>JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ3OSQ0NjEwMDIjNjEjJDEjJDQjJDgz</ykiho>
+            </item>
+        </items>
+        <numOfRows>3</numOfRows>
+        <pageNo>1</pageNo>
+        <totalCount>1277</totalCount>
+    </body>
 </response>

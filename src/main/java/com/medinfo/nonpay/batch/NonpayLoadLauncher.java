@@ -24,7 +24,7 @@ import java.time.YearMonth;
  *
  *  - 회차(runKey) = 이번 달 "2026-11". 한 달에 한 번 전체를 다시 받는다
  *    (데이터는 연 1회 9월 공개지만 병원 정정분 반영 + 한도 대비 부담 없음: 요약 약 195회 + 상세 약 5천 회)
- *  - 순서: 요약 완료 → 상세. 요약이 이번 회차에 완료돼 있지 않으면 상세는 시작하지 않는다
+ *  - 순서: 요약 완료 → 가격 통계 갱신 → 상세. 요약이 이번 회차에 완료돼 있지 않으면 상세는 시작하지 않는다
  *  - 이미 완료 → 아무것도 안 함 (API 호출 0)
  *  - 실패(한도 초과·네트워크) → 같은 파라미터로 다시 실행 = Spring Batch 재시작 → 체크포인트부터 이어받기
  *  - STARTED로 남아 있음 → 서버가 실행 중에 죽은 것. Quartz 클러스터가 이 잡의 동시 실행을 막으므로
@@ -91,7 +91,11 @@ public class NonpayLoadLauncher {
             JobExecution execution = jobOperator.start(job, params); // SyncTaskExecutor → 끝날 때까지 기다림
             BatchStatus status = execution.getStatus();
             if (status == BatchStatus.COMPLETED) {
-                long rows = NonpayBatchConfig.SUMMARY_JOB.equals(job.getName()) ? repository.countSummary() : repository.countDetail();
+                boolean summary = NonpayBatchConfig.SUMMARY_JOB.equals(job.getName());
+                if (summary) {
+                    repository.refreshStats(); // 가격 통계(홈 목록·지역 중간값)를 새 데이터로
+                }
+                long rows = summary ? repository.countSummary() : repository.countDetail();
                 log.info("{} 완료: 테이블 전체 {}건", job.getName(), rows);
                 metrics.success(job.getName(), rows);
                 return true;

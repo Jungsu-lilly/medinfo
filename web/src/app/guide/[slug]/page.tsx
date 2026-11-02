@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import BackHeader from "@/components/BackHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { GUIDES } from "@/lib/sample-data";
+import { GUIDES } from "@/lib/guides";
 
 // 가이드 글은 애드센스 승인에 필요한 "사람이 쓴 콘텐츠" 자리. 본문은 직접 작성 예정
 export function generateStaticParams() {
