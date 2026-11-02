@@ -47,6 +47,7 @@ public class QuartzConfig {
 
     public static final JobKey HOSPITAL_SYNC = JobKey.jobKey("hospitalSync", "collector");
     public static final JobKey ER_HOSPITAL_SYNC = JobKey.jobKey("erHospitalSync", "collector");
+    public static final JobKey NONPAY_LOAD = JobKey.jobKey("nonpayLoad", "collector");
 
     @Bean
     public JobDetail hospitalSyncJobDetail() {
@@ -107,6 +108,27 @@ public class QuartzConfig {
                 .withSchedule(CronScheduleBuilder.cronSchedule("0 5 * * * ?") // 매시 5분
                         .inTimeZone(KST)
                         .withMisfireHandlingInstructionDoNothing())
+                .build();
+    }
+
+    @Bean
+    public JobDetail nonpayLoadJobDetail() {
+        return JobBuilder.newJob(QuartzJobs.NonpayLoadJob.class)
+                .withIdentity(NONPAY_LOAD)
+                .withDescription("비급여 요약·상세 적재 (Spring Batch, 한도 넘으면 다음 날 이어받기)")
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger nonpayLoadTrigger(JobDetail nonpayLoadJobDetail,
+                                     @Value("${collector.nonpay.cron}") String cron) {
+        return TriggerBuilder.newTrigger()
+                .forJob(nonpayLoadJobDetail)
+                .withIdentity("nonpayLoadTrigger", "collector")
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron)
+                        .inTimeZone(KST)
+                        .withMisfireHandlingInstructionDoNothing()) // 매시간이라 놓친 건 다음 시간에
                 .build();
     }
 }

@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Repository
@@ -40,10 +41,14 @@ public class HospitalRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /** 한 페이지(최대 1000건) 단위로 호출 → 페이지마다 커밋. 중간에 실패해도 앞 페이지는 남는다 */
+    /**
+     * 한 페이지(최대 1000건) 단위로 호출 → 페이지마다 커밋. 중간에 실패해도 앞 페이지는 남는다.
+     * ykiho 오름차순으로 넣는다: 비급여 적재도 hospital 행을 같은 순서로 잠그므로 둘이 동시에 돌아도 교착이 안 생김
+     */
     @Transactional
     public void upsertAll(List<HospitalRow> rows) {
         jdbcTemplate.batchUpdate(UPSERT_SQL, rows.stream()
+                .sorted(Comparator.comparing(HospitalRow::ykiho))
                 .map(r -> new Object[]{
                         r.ykiho(), r.name(), r.clCd(), r.clCdNm(), r.sidoCd(), r.sidoNm(), r.sgguCd(), r.sgguNm(),
                         r.addr(), r.lon(), r.lat(), r.tel(), r.hospUrl()})
