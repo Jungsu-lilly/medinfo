@@ -1,4 +1,7 @@
 # 로컬 개발용. 비밀번호는 로컬 전용 값이라 그대로 둬도 됨 (운영은 RDS + Secrets)
+# 프로젝트 이름 고정 (기존 볼륨 이름 medinfo_pgdata 유지). 운영 미리보기는 compose.prod-local.yml(medinfo-prodlocal)
+name: medinfo
+
 services:
   postgres:
     image: postgis/postgis:16-3.4

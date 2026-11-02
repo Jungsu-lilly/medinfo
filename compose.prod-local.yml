@@ -1,8 +1,15 @@
 # 운영 이미지를 내 PC에서 미리 띄워보는 용도 (AWS에 올리기 전 확인)
-#   docker compose -f compose.prod-local.yml up --build
+#   처음 / 코드가 바뀌었을 때:  docker compose -f compose.prod-local.yml up -d --build   (이미지 다시 빌드, 수 분)
+#   그냥 다시 켤 때:            docker compose -f compose.prod-local.yml up -d           (빌드 없이 기존 이미지로)
+#   끄기:                      docker compose -f compose.prod-local.yml down
 #   → http://localhost:3000 (화면), http://localhost:8080/api/... (API), http://localhost:8081/actuator/health (관리)
 # 인증키는 프로젝트 루트 .env의 PUBLIC_DATA_SERVICE_KEY를 그대로 읽는다 (compose가 .env를 자동으로 읽음)
 # 로컬 개발 DB(docker-compose.yml, 5432)와 안 겹치게 DB는 5433 + 별도 볼륨
+#
+# 프로젝트 이름을 따로 둔다: 안 정하면 폴더 이름(medinfo)이 돼서 개발용 compose와 같은 프로젝트로 묶이고,
+# 둘 다 서비스 이름이 postgres라 이 파일로 올리면 개발용 DB 컨테이너(5432)를 이 설정(5433)으로 바꿔버린다
+name: medinfo-prodlocal
+
 services:
   postgres:
     image: postgis/postgis:16-3.4
