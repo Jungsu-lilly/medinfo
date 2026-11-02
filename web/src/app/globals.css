@@ -32,7 +32,7 @@ body {
 body {
   background: #eeeeeb;
   color: var(--ink);
-  font-family: "IBM Plex Sans KR", system-ui, -apple-system, sans-serif;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.2px;
   -webkit-font-smoothing: antialiased;
