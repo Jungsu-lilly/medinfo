@@ -21,6 +21,10 @@ spring:
       initialize-schema: never
 
   quartz:
+    # false면 스케줄러가 시작하지 않음 = 수집·적재가 전부 멈춤.
+    # 인증키가 계정당 1개라 로컬과 운영이 같은 키를 쓴다 → 운영이 돌기 시작하면 로컬은 .env에 COLLECTORS_ENABLED=false
+    # (응급실 수집만 해도 운영 720회 + 로컬 720회 = 일일 한도 1,000 초과)
+    auto-startup: ${COLLECTORS_ENABLED:true}
     job-store-type: jdbc
     # Quartz 기본 스크립트는 재시작마다 테이블을 DROP → 트리거가 날아감. Flyway(V2)로 관리
     jdbc:
@@ -65,7 +69,7 @@ collector:
     contains-radius-meters: 100   # 3단계: 이름 포함관계면 이 반경까지
   # 첫 기동 때 비어 있으면 즉시 1회 실행
   bootstrap:
-    enabled: true
+    enabled: ${COLLECTORS_ENABLED:true}
   snapshot-retention-days: 7
 
 # 비급여 조회 API

@@ -188,4 +188,5 @@ src/main/resources/db/migration
 - [x] 비급여 요약·상세 대량 적재 (Spring Batch, 매월 회차, 한도 초과 시 이어받기)
 - [x] 응급실 조회 API(`GET /api/er`) + Next.js 화면 4개(시안 v0.1), PWA
 - [x] 가격·병원 조회 API (`/api/items`, `/api/items/featured`, `/api/prices/{code}`, `/api/hospitals`, `/api/hospitals/{id}`, `/api/regions`) + 화면 실데이터 연결
-- [ ] Dockerfile, CI/CD, Terraform 이식 (Flicker)
+- [x] Dockerfile(api·web), 운영 프로필(`application-prod.yml`), 헬스체크, 배포 가이드(`docs/deploy.md`)
+- [ ] CI/CD, Terraform 이식 (Flicker)

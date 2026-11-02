@@ -1,0 +1,12 @@
+# Spring 이미지에 필요 없는 것 (프론트는 web/Dockerfile로 따로 빌드)
+web/
+build/
+.gradle/
+.idea/
+.git/
+http/
+*.md
+.env
+.env.*
+docker-compose*.yml
+compose*.yml

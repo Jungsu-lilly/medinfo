@@ -39,6 +39,11 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Dockerfile이 파일 이름을 고정으로 쓰도록
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }
