@@ -4,17 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { coordsQuery, loadLocation } from "@/lib/location";
 
-/** 항목 가격 페이지 링크. 최근에 "내 위치"를 골랐으면 내 위치 기준으로 연다 */
+/** 가격 페이지 링크(/price/…, /vaccine/…). 최근에 "내 위치"를 골랐으면 내 위치 기준으로 연다 */
 export default function PriceLink({
-  code,
+  href: base,
   className,
   children,
 }: {
-  code: string;
+  href: string;
   className?: string;
   children: React.ReactNode;
 }) {
-  const base = `/price/${code}`;
   const [href, setHref] = useState(base);
   useEffect(() => {
     const c = loadLocation();

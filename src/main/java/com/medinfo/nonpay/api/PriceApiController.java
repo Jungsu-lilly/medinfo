@@ -28,6 +28,7 @@ public class PriceApiController {
     static final double DEFAULT_LNG = 126.9019;
 
     private static final Pattern CODE = Pattern.compile("[A-Za-z0-9]{1,50}");
+    private static final Pattern SLUG = Pattern.compile("[a-z-]{1,30}");
     private static final Pattern REGION_CODE = Pattern.compile("\\d{6}");
     private static final CacheControl TEN_MINUTES = CacheControl.maxAge(Duration.ofMinutes(10)).cachePublic();
 
@@ -73,6 +74,29 @@ public class PriceApiController {
         var result = lat != null && lng != null && inKorea(lat, lng)
                 ? service.pricesNear(code, lat, lng, Math.clamp(radius, 1_000, 30_000))
                 : service.pricesInRegion(code,
+                        REGION_CODE.matcher(sido).matches() ? sido : DEFAULT_SIDO,
+                        sggu != null && REGION_CODE.matcher(sggu).matches() ? sggu : null);
+        return result.map(body -> ResponseEntity.ok().cacheControl(TEN_MINUTES).body(body))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 예방접종 질병별 묶음 (flu, shingles, hpv …). /api/prices와 같은 모양에 products(제품별 통계)가 붙는다.
+     * 병원마다 가장 싼 제품 가격 1건으로 비교
+     */
+    @GetMapping("/api/vaccines/{slug}")
+    public ResponseEntity<PriceList> vaccine(@PathVariable String slug,
+                                             @RequestParam(defaultValue = DEFAULT_SIDO) String sido,
+                                             @RequestParam(required = false) String sggu,
+                                             @RequestParam(required = false) Double lat,
+                                             @RequestParam(required = false) Double lng,
+                                             @RequestParam(defaultValue = "5000") int radius) {
+        if (!SLUG.matcher(slug).matches()) {
+            return ResponseEntity.notFound().build();
+        }
+        var result = lat != null && lng != null && inKorea(lat, lng)
+                ? service.vaccineNear(slug, lat, lng, Math.clamp(radius, 1_000, 30_000))
+                : service.vaccineInRegion(slug,
                         REGION_CODE.matcher(sido).matches() ? sido : DEFAULT_SIDO,
                         sggu != null && REGION_CODE.matcher(sggu).matches() ? sggu : null);
         return result.map(body -> ResponseEntity.ok().cacheControl(TEN_MINUTES).body(body))

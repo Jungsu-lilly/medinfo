@@ -104,6 +104,7 @@ export default function PriceList({
                   </span>
                   <span className="meta">
                     {r.kind}
+                    {r.product && ` · ${r.product}`}
                     {r.distanceMeters !== null && ` · ${distance(r.distanceMeters)}`}
                   </span>
                 </span>

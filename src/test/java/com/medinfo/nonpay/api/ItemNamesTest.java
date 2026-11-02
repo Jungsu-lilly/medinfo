@@ -15,6 +15,8 @@ class ItemNamesTest {
             "자기공명영상진단료(MRI-기본검사)/근골격계-슬관절/일반 | 무릎(슬관절) MRI",
             "자기공명영상진단료(MRI-기본검사)/척추-요천추/조영제 주입 전·후 촬영 판독 | 허리(요천추) MRI (조영제)",
             "자기공명영상진단료(MRI-기본검사)/뇌/일반 | 뇌 MRI",
+            "자기공명영상진단료(MRI-기본검사)/근골격계-관절외 하지/일반 | 다리(관절 외) MRI",
+            "자기공명영상진단료(MRI-기본검사)/근골격계-관절외 상지/일반 | 팔(관절 외) MRI",
             "자기공명영상진단료(MRI-특수검사)/확산 | MRI 특수검사 확산",
             "초음파검사료(진단초음파)/두경부-경부 초음파/갑상선·부갑상선 | 갑상선·부갑상선 초음파",
             "초음파검사료(진단초음파)/근골격, 연부-관절 초음파/견관절 | 어깨(견관절) 초음파",
@@ -44,10 +46,19 @@ class ItemNamesTest {
 
     @Test
     void 검색어는_단어별로_나누고_동의어를_붙인다() {
-        assertThat(ItemNames.terms("무릎 MRI")).containsExactly(List.of("무릎"), List.of("MRI", "자기공명"));
+        assertThat(ItemNames.terms("무릎 MRI")).containsExactly(List.of("무릎", "슬관절"), List.of("MRI", "자기공명"));
         assertThat(ItemNames.terms("독감")).containsExactly(List.of("독감", "인플루엔자"));
+        // 화면에 쓰는 부위 이름으로도 찾는다 (항목명엔 의학 용어만 있음)
+        assertThat(ItemNames.terms("무릎 MRI")).first().isEqualTo(List.of("무릎", "슬관절"));
+        assertThat(ItemNames.terms("손목")).containsExactly(List.of("손목", "손목관절", "수관절"));
+        assertThat(ItemNames.terms("다리")).containsExactly(List.of("다리", "하지"));
         assertThat(ItemNames.terms("  ")).isEmpty();
         assertThat(ItemNames.terms("a b c d e f g")).hasSize(5);
+        // 독감으로 찾으면 Hib(b형헤모필루스인플루엔자) 백신은 뺀다
+        assertThat(ItemNames.excludes("독감")).containsExactly("헤모필루스");
+        assertThat(ItemNames.excludes("독감 예방접종")).containsExactly("헤모필루스");
+        assertThat(ItemNames.excludes("인플루엔자")).isEmpty();
+        assertThat(ItemNames.prefix("예방접종료/A_형/")).isEqualTo("예방접종료/A\\_형/%");
     }
 
     @Test
