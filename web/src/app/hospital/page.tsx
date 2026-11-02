@@ -5,7 +5,7 @@ import { SearchIcon } from "@/components/Icons";
 import SiteFooter from "@/components/SiteFooter";
 import { coord, getHospitals } from "@/lib/api";
 import { distance } from "@/lib/format";
-import LocateButton from "./LocateButton";
+import NearHeader from "./NearHeader";
 import styles from "../home.module.css";
 
 export const metadata: Metadata = {
@@ -22,7 +22,13 @@ export default function HospitalIndexPage(props: Props) {
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>병원 찾기</h1>
         <span className="meta">이름으로 찾기 · 가까운 병원</span>
       </header>
-      <Suspense fallback={<p className={styles.loading} style={{ padding: 16 }}>불러오는 중…</p>}>
+      <Suspense
+        fallback={
+          <p className={styles.loading} style={{ padding: 16 }}>
+            불러오는 중…
+          </p>
+        }
+      >
         <Results searchParams={props.searchParams} />
       </Suspense>
       <SiteFooter />
@@ -37,6 +43,10 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
   const lat = coord(sp.lat);
   const lng = coord(sp.lng);
   const nearMe = lat !== undefined && lng !== undefined;
+  // 지역을 직접 골랐으면 그 이름, 좌표만 있으면 내 위치
+  const areaRaw = Array.isArray(sp.area) ? sp.area[0] : sp.area;
+  const area = areaRaw && areaRaw.length <= 20 ? areaRaw : undefined;
+  const where = nearMe ? (area ?? "내 위치") : "마포구";
   const { data, error } = await getHospitals(q ? { q } : nearMe ? { lat, lng } : {});
 
   return (
@@ -52,15 +62,20 @@ async function Results({ searchParams }: { searchParams: Props["searchParams"] }
       </form>
 
       <section aria-labelledby="near" className="section" style={{ paddingTop: 8 }}>
-        <div className="section-head">
-          <h2 id="near" className="section-title">
-            {q ? `"${q}" 검색 결과` : nearMe ? "내 위치에서 가까운 병원" : "가까운 병원 (마포구 기준)"}
-          </h2>
-          {!q && <LocateButton active={nearMe} />}
-        </div>
+        {q ? (
+          <div className="section-head">
+            <h2 id="near" className="section-title">
+              &quot;{q}&quot; 검색 결과
+            </h2>
+          </div>
+        ) : (
+          <NearHeader label={where} hasPoint={nearMe} />
+        )}
         {error && <p className={styles.loading}>병원 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>}
         {data && data.length === 0 && (
-          <p className={styles.loading}>{q ? "이름이 맞는 병원이 없어요." : "반경 5km 안에 비급여 가격이 있는 병원이 없어요."}</p>
+          <p className={styles.loading}>
+            {q ? "이름이 맞는 병원이 없어요." : "반경 5km 안에 비급여 가격이 있는 병원이 없어요."}
+          </p>
         )}
         {!q && data && data.length > 0 && (
           <p className="meta" style={{ marginBottom: 4 }}>

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import AdSlot from "@/components/AdSlot";
 import type { PriceRow } from "@/lib/api";
 import { diffFromMedian, distance, won } from "@/lib/format";
+import { RoughNotice } from "@/components/location/LocationPicker";
 import { coordsQuery, useLocate } from "@/lib/location";
 import styles from "./price.module.css";
 
@@ -27,7 +28,7 @@ export default function PriceList({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { state, locate } = useLocate();
+  const { state, roughMeters, locate } = useLocate();
   const [sort, setSort] = useState<"price" | "distance">(byDistance ? initialSort : "price");
 
   // 가까운 순은 내 위치가 있어야 한다. 아직 지역 기준이면 위치를 받아 내 위치 기준으로 다시 연다
@@ -65,10 +66,18 @@ export default function PriceList({
           <button type="button" aria-pressed={sort === "price"} onClick={() => setSort("price")}>
             가격 낮은 순
           </button>
-          <button type="button" aria-pressed={sort === "distance"} onClick={sortByDistance} disabled={state === "locating"}>
+          <button
+            type="button"
+            aria-pressed={sort === "distance"}
+            onClick={sortByDistance}
+            disabled={state === "locating"}
+          >
             {state === "locating" ? "위치 확인 중…" : state === "denied" ? "위치 권한 필요" : "가까운 순"}
           </button>
         </div>
+        {state === "rough" && roughMeters !== null && (
+          <RoughNotice meters={roughMeters} hint="가까운 순 대신 위에서 시도·시군구를 골라 주세요." />
+        )}
         {kinds.length > 0 && (
           <div role="group" aria-label="병원 종류" className={styles.chips}>
             {kinds.map((k) => (
@@ -92,7 +101,8 @@ export default function PriceList({
       <ol className={styles.list}>
         {visible.map((r, i) => {
           const diff = diffFromMedian(r.minPrice, median);
-          const tag = rows.length > 1 && r.minPrice === min ? "최저" : rows.length > 1 && r.minPrice === max ? "최고" : "";
+          const tag =
+            rows.length > 1 && r.minPrice === min ? "최저" : rows.length > 1 && r.minPrice === max ? "최고" : "";
           return (
             <li key={r.hospitalId} className={styles.rowItem}>
               {i === AD_AFTER && <AdSlot />}
