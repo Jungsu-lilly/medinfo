@@ -33,4 +33,15 @@ class PriceServiceTest {
         // 같은 시도 병원이 3곳 미만이면 중간값을 보여주지 않는다
         assertThat(groups.get(0).items().get(1).regionMedian()).isNull();
     }
+
+    @Test
+    void 가격이_없는_이유는_종별로_구분한다() {
+        assertThat(PriceService.noPriceReason("의원")).isEqualTo("CLINIC");
+        assertThat(PriceService.noPriceReason("치과의원")).isEqualTo("CLINIC");
+        assertThat(PriceService.noPriceReason("한의원")).isEqualTo("CLINIC");
+        assertThat(PriceService.noPriceReason("보건지소")).isEqualTo("CLINIC");
+        assertThat(PriceService.noPriceReason("병원")).isEqualTo("NOT_REPORTED");
+        assertThat(PriceService.noPriceReason("치과병원")).isEqualTo("NOT_REPORTED");
+        assertThat(PriceService.noPriceReason("요양병원")).isEqualTo("NOT_REPORTED");
+    }
 }

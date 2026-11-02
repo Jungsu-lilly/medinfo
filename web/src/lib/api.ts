@@ -24,6 +24,8 @@ export type PriceList = {
   point: PointRef | null;
   stats: Stats;
   rows: PriceRow[];
+  /** 비급여 데이터를 마지막으로 받아온 날 (yyyy-MM-dd) */
+  collectedOn: string | null;
 };
 export type HospitalItem = { code: string; name: string; std: string | null; price: number; regionMedian: number | null };
 export type ItemGroup = { name: string; items: HospitalItem[] };
@@ -42,8 +44,19 @@ export type HospitalPage = {
   detailed: boolean;
   itemCount: number;
   groups: ItemGroup[];
+  /** 가격이 없을 때만: CLINIC = 의원급(심평원 미공개), NOT_REPORTED = 병원급인데 신고·공개된 가격 없음 */
+  noPriceReason: "CLINIC" | "NOT_REPORTED" | null;
+  collectedOn: string | null;
 };
-export type HospitalListItem = { id: number; name: string; kind: string; addr: string | null; distanceMeters: number | null };
+export type HospitalListItem = {
+  id: number;
+  name: string;
+  kind: string;
+  addr: string | null;
+  distanceMeters: number | null;
+  /** 이름 검색엔 의원급처럼 가격이 없는 병원도 나온다 */
+  hasPrices: boolean;
+};
 export type Region = { code: string; name: string; sggu: { code: string; name: string }[] };
 
 export const DEFAULT_SIDO = "110000"; // 서울

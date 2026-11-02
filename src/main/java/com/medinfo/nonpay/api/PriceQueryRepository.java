@@ -169,12 +169,12 @@ public class PriceQueryRepository {
 
     private static final RowMapper<HospitalListRaw> HOSPITAL_LIST = (rs, i) -> new HospitalListRaw(
             rs.getLong("id"), rs.getString("name"), rs.getString("cl_cd_nm"), rs.getString("addr"),
-            (Double) rs.getObject("dist", Double.class));
+            (Double) rs.getObject("dist", Double.class), rs.getBoolean("has_prices"));
 
     /** 비급여 가격이 있는 병원 중 가까운 순 */
     public List<HospitalListRaw> hospitalsNear(double lat, double lng, int radiusMeters, int limit) {
         return jdbc.query("""
-                SELECT h.id, h.name, h.cl_cd_nm, h.addr, ST_Distance(h.location, pt.g) AS dist
+                SELECT h.id, h.name, h.cl_cd_nm, h.addr, ST_Distance(h.location, pt.g) AS dist, true AS has_prices
                   FROM (SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography AS g) pt
                   JOIN hospital h ON h.location IS NOT NULL AND ST_DWithin(h.location, pt.g, ?)
                  WHERE EXISTS (SELECT 1 FROM nonpay_price_summary s WHERE s.hospital_id = h.id)
@@ -183,16 +183,33 @@ public class PriceQueryRepository {
                 """, HOSPITAL_LIST, lng, lat, radiusMeters, limit);
     }
 
-    /** 이름으로 찾기 (비급여 가격이 있는 병원만). idx_hospital_name_trgm */
+    /**
+     * 이름으로 찾기. 의원급처럼 비급여 가격이 없는 병원도 나온다 (찾는 병원이 "없음"으로 보이지 않게).
+     * 가격 있는 병원을 먼저, 그다음 이름이 짧은(= 검색어에 더 가까운) 순. idx_hospital_name_trgm
+     */
     public List<HospitalListRaw> hospitalsByName(String query, int limit) {
         return jdbc.query("""
-                SELECT h.id, h.name, h.cl_cd_nm, h.addr, NULL::float8 AS dist
+                SELECT h.id, h.name, h.cl_cd_nm, h.addr, NULL::float8 AS dist,
+                       EXISTS (SELECT 1 FROM nonpay_price_summary s WHERE s.hospital_id = h.id) AS has_prices
                   FROM hospital h
                  WHERE h.name ILIKE ? ESCAPE '\\'
-                   AND EXISTS (SELECT 1 FROM nonpay_price_summary s WHERE s.hospital_id = h.id)
-                 ORDER BY length(h.name), h.name
+                 ORDER BY has_prices DESC, length(h.name), h.name
                  LIMIT ?
                 """, HOSPITAL_LIST, ItemNames.like(query), limit);
+    }
+
+    /**
+     * 비급여 데이터를 마지막으로 받아온 날 = 요약 적재 잡이 마지막으로 성공한 날.
+     * Spring Batch는 end_time을 JVM 시간대(로컬 PC·컨테이너 모두 Asia/Seoul) 기준 시각으로 저장 → 날짜만 자르면 KST 날짜
+     */
+    public Optional<java.time.LocalDate> lastNonpayCollectedOn() {
+        List<java.time.LocalDate> rows = jdbc.query("""
+                SELECT max(e.end_time)::date
+                  FROM batch_job_execution e
+                  JOIN batch_job_instance i ON i.job_instance_id = e.job_instance_id
+                 WHERE i.job_name = 'nonpaySummaryJob' AND e.status = 'COMPLETED'
+                """, (rs, i) -> rs.getObject(1, java.time.LocalDate.class));
+        return rows.stream().filter(java.util.Objects::nonNull).findFirst();
     }
 
     // ── 지역 ─────────────────────────────────────────
@@ -235,7 +252,8 @@ public class PriceQueryRepository {
                                   Integer median, Integer hospitalCount) {
     }
 
-    public record HospitalListRaw(long id, String name, String kind, String addr, Double distance) {
+    public record HospitalListRaw(long id, String name, String kind, String addr, Double distance,
+                                  boolean hasPrices) {
     }
 
     public record RegionRaw(String sidoCd, String sidoNm, String sgguCd, String sgguNm) {

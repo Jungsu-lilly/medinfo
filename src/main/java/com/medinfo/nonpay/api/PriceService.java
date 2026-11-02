@@ -23,6 +23,7 @@ import com.medinfo.nonpay.api.PriceQueryRepository.RegionRaw;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +37,8 @@ public class PriceService {
     /** 지역 중간값은 비교 대상 병원이 이만큼은 있어야 보여준다 (2곳 중간값은 의미가 약함) */
     static final int MIN_HOSPITALS_FOR_MEDIAN = 3;
     static final String OTHER_GROUP = "기타";
+    static final String NO_PRICE_CLINIC = "CLINIC";
+    static final String NO_PRICE_NOT_REPORTED = "NOT_REPORTED";
     private static final int MAX_ROWS = 500;
 
     private final PriceQueryRepository repository;
@@ -66,13 +69,13 @@ public class PriceService {
                             sggu == null ? null : r.sgguNm()))
                     .orElse(new RegionRef(sido, null, sggu, null));
             List<PriceRaw> raw = repository.pricesInRegion(code, sido, sggu, MAX_ROWS);
-            return toPriceList(item, region, null, raw);
+            return toPriceList(item, region, null, raw, collectedOn());
         });
     }
 
     public Optional<PriceList> pricesNear(String code, double lat, double lng, int radius) {
         return repository.findItem(code).map(item -> toPriceList(item, null, new PointRef(lat, lng, radius),
-                repository.pricesNear(code, lat, lng, radius, MAX_ROWS)));
+                repository.pricesNear(code, lat, lng, radius, MAX_ROWS), collectedOn()));
     }
 
     public Optional<HospitalPage> hospital(long id) {
@@ -83,9 +86,10 @@ public class PriceService {
                 raw = repository.hospitalSummaryItems(id, h.sidoCd());
             }
             List<ItemGroup> groups = group(raw);
+            String noPriceReason = raw.isEmpty() ? noPriceReason(h.kind()) : null;
             return new HospitalPage(h.id(), DisplayNames.clean(h.name()), h.kind(), h.addr(), h.tel(),
                     h.hospUrl(), h.nonpayUrl(), h.sidoNm(), h.sgguNm(), h.lat(), h.lng(),
-                    detailed, raw.size(), groups);
+                    detailed, raw.size(), groups, noPriceReason, collectedOn());
         });
     }
 
@@ -113,7 +117,23 @@ public class PriceService {
                 new Stats(r.hospitalCount(), r.low(), r.median(), r.high()));
     }
 
-    static PriceList toPriceList(ItemRow item, RegionRef region, PointRef point, List<PriceRaw> raw) {
+    private String collectedOn() {
+        return repository.lastNonpayCollectedOn().map(LocalDate::toString).orElse(null);
+    }
+
+    /**
+     * 가격이 없는 이유. 종별 이름으로 판단한다 (심평원 clCdNm: 의원, 치과의원, 한의원, 보건소, 보건지소, 보건진료소, 조산원 …).
+     * 의원급 비급여는 심평원이 오픈API로 공개하지 않는다 (2026-10-15 심평원 답변)
+     */
+    static String noPriceReason(String kind) {
+        if (kind != null && (kind.endsWith("의원") || kind.startsWith("보건") || kind.equals("조산원"))) {
+            return NO_PRICE_CLINIC;
+        }
+        return NO_PRICE_NOT_REPORTED;
+    }
+
+    static PriceList toPriceList(ItemRow item, RegionRef region, PointRef point, List<PriceRaw> raw,
+                                 String collectedOn) {
         List<PriceRow> rows = raw.stream()
                 .map(p -> new PriceRow(p.hospitalId(), DisplayNames.clean(p.name()), p.kind(),
                         p.minPrice(), p.maxPrice(),
@@ -121,7 +141,8 @@ public class PriceService {
                 .toList();
         ItemInfo info = new ItemInfo(item.code(), ItemNames.shortName(item.korNm()), item.korNm(),
                 ItemNames.path(item.mdivNm(), item.sdivNm(), item.dtlDivNm()));
-        return new PriceList(info, region, point, stats(rows.stream().map(PriceRow::minPrice).toList()), rows);
+        return new PriceList(info, region, point, stats(rows.stream().map(PriceRow::minPrice).toList()), rows,
+                collectedOn);
     }
 
     /** 병원별 최저가 목록 → 병원 수·최저·중간·최고. 비어 있으면 전부 0 */
@@ -161,6 +182,6 @@ public class PriceService {
 
     static HospitalListItem toListItem(HospitalListRaw r) {
         return new HospitalListItem(r.id(), DisplayNames.clean(r.name()), r.kind(), r.addr(),
-                r.distance() == null ? null : (int) Math.round(r.distance()));
+                r.distance() == null ? null : (int) Math.round(r.distance()), r.hasPrices());
     }
 }

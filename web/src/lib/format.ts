@@ -26,3 +26,9 @@ export function hhmm(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" });
 }
+
+/** "2026-11-02" → "2026년 11월 2일" */
+export function koreanDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}

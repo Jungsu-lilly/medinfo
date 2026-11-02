@@ -19,8 +19,12 @@ public final class ApiModels {
     public record ItemInfo(String code, String name, String fullName, List<String> path) {
     }
 
-    /** 가격 비교 결과. region(시도·시군구) 또는 point(내 위치 반경) 중 하나 */
-    public record PriceList(ItemInfo item, RegionRef region, PointRef point, Stats stats, List<PriceRow> rows) {
+    /**
+     * 가격 비교 결과. region(시도·시군구) 또는 point(내 위치 반경) 중 하나.
+     * collectedOn = 비급여 데이터를 마지막으로 받아온 날 (yyyy-MM-dd, 아직 없으면 null)
+     */
+    public record PriceList(ItemInfo item, RegionRef region, PointRef point, Stats stats, List<PriceRow> rows,
+                            String collectedOn) {
     }
 
     public record RegionRef(String sido, String sidoName, String sggu, String sgguName) {
@@ -34,9 +38,13 @@ public final class ApiModels {
                            Integer distanceMeters) {
     }
 
+    /**
+     * noPriceReason: 가격이 없을 때만. CLINIC = 의원급(심평원 미공개), NOT_REPORTED = 병원급인데 신고·공개된 가격 없음
+     */
     public record HospitalPage(long id, String name, String kind, String addr, String tel, String homepage,
                                String nonpayUrl, String sidoName, String sgguName, Double lat, Double lng,
-                               boolean detailed, int itemCount, List<ItemGroup> groups) {
+                               boolean detailed, int itemCount, List<ItemGroup> groups,
+                               String noPriceReason, String collectedOn) {
     }
 
     public record ItemGroup(String name, List<HospitalItem> items) {
@@ -46,7 +54,9 @@ public final class ApiModels {
     public record HospitalItem(String code, String name, String std, int price, Integer regionMedian) {
     }
 
-    public record HospitalListItem(long id, String name, String kind, String addr, Integer distanceMeters) {
+    /** hasPrices = 비급여 가격이 있는 병원인지 (이름 검색엔 의원급도 나와서 구분 필요) */
+    public record HospitalListItem(long id, String name, String kind, String addr, Integer distanceMeters,
+                                   boolean hasPrices) {
     }
 
     public record Region(String code, String name, List<Sggu> sggu) {
