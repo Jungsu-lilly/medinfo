@@ -14,3 +14,13 @@ export const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
  * 오픈할 때 SITE_INDEXING=true로 다시 빌드
  */
 export const SITE_INDEXING = process.env.SITE_INDEXING === "true";
+
+/**
+ * 구글 애드센스 게시자 ID (공개 값). 모든 페이지 <head>에 애드센스 스크립트를 넣고, /ads.txt에도 같은 값
+ * 광고 단위 ID는 애드센스 → 광고 → 광고 단위에서 만든 뒤 넣는다. 비어 있으면 그 자리는 그리지 않음
+ */
+export const ADSENSE_CLIENT = "ca-pub-2979099793904209";
+export const ADSENSE_SLOTS = {
+  /** 가격 비교 목록 3번째 아래 */
+  priceList: "",
+} as const;
