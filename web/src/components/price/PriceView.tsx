@@ -4,6 +4,7 @@ import { InfoIcon } from "@/components/Icons";
 import SiteFooter from "@/components/SiteFooter";
 import type { PriceList as Prices, Region } from "@/lib/api";
 import { koreanDate, manwon, won } from "@/lib/format";
+import { noticeFor } from "@/lib/itemNotices";
 import PriceList from "./PriceList";
 import RegionPicker from "./RegionPicker";
 import styles from "./price.module.css";
@@ -42,6 +43,7 @@ export default function PriceView({
 }) {
   const { item, stats, rows, products } = data;
   const isGroup = products !== null;
+  const notice = noticeFor(item.fullName);
   const midPct =
     stats.high === stats.low ? 0 : Math.round(((stats.median - stats.low) / (stats.high - stats.low)) * 100);
 
@@ -56,6 +58,15 @@ export default function PriceView({
         nearLabel={regionLabel(data, area)}
         areaBased={area !== null}
       />
+
+      {notice && (
+        <p className={styles.itemNotice} role="note">
+          {notice.text}{" "}
+          <Link href={notice.href} className={styles.itemNoticeLink}>
+            {notice.linkText}
+          </Link>
+        </p>
+      )}
 
       <section aria-label="가격 요약" className={styles.summary}>
         <p className="meta" style={{ marginBottom: 10 }}>

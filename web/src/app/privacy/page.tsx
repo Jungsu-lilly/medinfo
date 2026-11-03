@@ -5,8 +5,8 @@ import BackHeader from "@/components/BackHeader";
 export const metadata: Metadata = { title: "개인정보처리방침" };
 
 /**
- * 초안. 애드센스 신청 전에 운영자 정보·시행일을 채우고 실제 운영 방식과 맞는지 다시 확인한다.
- * 현재 서비스는 회원가입이 없고, 위치는 브라우저에서만 쓰고 저장하지 않는다는 전제.
+ * 회원가입이 없고, 위치는 가까운 병원·응급실을 찾을 때만 쓰고 저장하지 않는다는 전제.
+ * 수집하는 것이 바뀌면(예: 방문 통계 도구 추가) 이 방침과 시행일을 같이 고친다.
  */
 const p = { fontSize: 14, lineHeight: "24px", color: "var(--ink-2)", marginTop: 10 } as const;
 const h2 = { fontSize: 16, fontWeight: 700, marginTop: 24 } as const;
@@ -16,13 +16,13 @@ export default function PrivacyPage() {
     <>
       <BackHeader backHref="/" title="개인정보처리방침" />
       <article style={{ padding: "8px 16px 32px" }}>
-        <p className="meta">시행일: [YYYY-MM-DD]</p>
+        <p className="meta">시행일: 2026년 11월 4일</p>
 
         <h2 style={h2}>수집하는 정보</h2>
         <p style={p}>회원가입이 없으며 이름, 연락처 같은 개인정보를 받지 않습니다.</p>
         <p style={p}>
-          &quot;내 위치로 찾기&quot;를 누르면 기기 위치(위도·경도)를 가까운 응급실을 찾는 데만 사용하며 서버에 저장하지
-          않습니다.
+          &quot;내 위치&quot;를 누르면 기기 위치(위도·경도)를 가까운 병원·응급실을 찾는 데만 사용하며 서버에 저장하지
+          않습니다. 다시 묻지 않도록 내 위치(30분)와 직접 고른 지역은 이용자의 브라우저에만 기억해 둡니다.
         </p>
 
         <h2 style={h2}>쿠키와 광고</h2>

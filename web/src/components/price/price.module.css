@@ -279,3 +279,22 @@
   font-weight: 400;
   color: var(--muted);
 }
+
+/* 제도 변경 안내 띠 (예: 도수치료 관리급여) */
+.itemNotice {
+  margin: 4px 16px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fdf3e2;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  word-break: keep-all;
+}
+
+.itemNoticeLink {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  white-space: nowrap;
+}
