@@ -104,6 +104,16 @@ export function fetchAreas(): Promise<AreaSido[]> {
   return areasCache;
 }
 
+/** 시도·시군구 코드 → 그 시군구 중심 (가격 비교에서 고른 지역을 "가까운 순" 기준점으로 쓸 때) */
+export async function areaCenter(sido: string, sggu: string): Promise<SavedArea | null> {
+  try {
+    const g = (await fetchAreas()).find((a) => a.code === sido)?.sggu.find((x) => x.code === sggu);
+    return g ? { sido, sggu, lat: g.lat, lng: g.lng, label: g.name } : null;
+  } catch {
+    return null;
+  }
+}
+
 export type LocateState = "idle" | "locating" | "denied" | "rough";
 
 /**
@@ -115,8 +125,14 @@ export function useLocate() {
   const [state, setState] = useState<LocateState>("idle");
   const [roughMeters, setRoughMeters] = useState<number | null>(null);
 
-  const locate = (onFound: (c: Coords, roughMeters: number | null) => void, opts: { allowRough?: boolean } = {}) => {
-    if (!("geolocation" in navigator)) return setState("denied");
+  const locate = (
+    onFound: (c: Coords, roughMeters: number | null) => void,
+    opts: { allowRough?: boolean; onUnavailable?: (reason: "rough" | "denied") => void } = {},
+  ) => {
+    if (!("geolocation" in navigator)) {
+      setState("denied");
+      return opts.onUnavailable?.("denied");
+    }
     setState("locating");
 
     const request = () =>
@@ -128,8 +144,12 @@ export function useLocate() {
           setState(rough === null ? "idle" : "rough");
           if (rough === null) saveLocation(c);
           if (rough === null || opts.allowRough) onFound(c, rough);
+          else opts.onUnavailable?.("rough");
         },
-        () => setState("denied"),
+        () => {
+          setState("denied");
+          opts.onUnavailable?.("denied");
+        },
         // 핸드폰은 GPS까지 쓴다. GPS가 없는 PC에선 효과 없음
         { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
       );
