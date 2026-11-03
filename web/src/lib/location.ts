@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { beforeLocationPrompt } from "./locationNotice";
 
 /**
  * 기준 위치 (브라우저 안에서만 기억, 서버로 따로 보내지 않음). 두 가지:
@@ -117,19 +118,24 @@ export function useLocate() {
   const locate = (onFound: (c: Coords, roughMeters: number | null) => void, opts: { allowRough?: boolean } = {}) => {
     if (!("geolocation" in navigator)) return setState("denied");
     setState("locating");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const rough = pos.coords.accuracy > INACCURATE_METERS ? Math.round(pos.coords.accuracy) : null;
-        setRoughMeters(rough);
-        setState(rough === null ? "idle" : "rough");
-        if (rough === null) saveLocation(c);
-        if (rough === null || opts.allowRough) onFound(c, rough);
-      },
-      () => setState("denied"),
-      // 핸드폰은 GPS까지 쓴다. GPS가 없는 PC에선 효과 없음
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
+
+    const request = () =>
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const rough = pos.coords.accuracy > INACCURATE_METERS ? Math.round(pos.coords.accuracy) : null;
+          setRoughMeters(rough);
+          setState(rough === null ? "idle" : "rough");
+          if (rough === null) saveLocation(c);
+          if (rough === null || opts.allowRough) onFound(c, rough);
+        },
+        () => setState("denied"),
+        // 핸드폰은 GPS까지 쓴다. GPS가 없는 PC에선 효과 없음
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+      );
+
+    // 카카오톡 인앱 브라우저면 처음 한 번 안내 후 권한을 묻는다 (취소하면 아무것도 안 함)
+    void beforeLocationPrompt().then((ok) => (ok ? request() : setState("idle")));
   };
 
   /** 다른 방법(지역 선택 등)으로 위치를 정했을 때 안내 상태 지우기 */
