@@ -1,4 +1,4 @@
-# 병원값 · [병원값.com](https://xn--639ao13amqh.com)
+# [병원값.com](https://xn--639ao13amqh.com)
 
 [![deploy](https://github.com/Jungsu-lilly/medinfo/actions/workflows/deploy.yml/badge.svg)](https://github.com/Jungsu-lilly/medinfo/actions/workflows/deploy.yml)
 
