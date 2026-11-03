@@ -28,15 +28,6 @@ export default function AboutPage() {
           이 서비스는 의학적 판단을 대신하지 않습니다. 몸에 이상이 있으면 의료진과 상의하고, 위급하면 119에 먼저
           전화하세요.
         </p>
-
-        <h2 id="contact" style={h2}>
-          문의
-        </h2>
-        <p style={p}>
-          <a href="mailto:gkwjdtn1235@gmail.com" style={{ textDecoration: "underline" }}>
-            gkwjdtn1235@gmail.com
-          </a>
-        </p>
       </article>
     </>
   );

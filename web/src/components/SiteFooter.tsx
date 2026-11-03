@@ -14,7 +14,7 @@ export default function SiteFooter({ children }: { children?: React.ReactNode })
       <div className="footer-links">
         <Link href="/about">서비스 소개</Link>
         <Link href="/privacy">개인정보처리방침</Link>
-        <Link href="/about#contact">문의</Link>
+        <Link href="/contact">문의</Link>
       </div>
     </footer>
   );
