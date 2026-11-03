@@ -5,6 +5,7 @@ import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
 import { Suspense } from "react";
 import BottomNav, { BottomNavView } from "@/components/BottomNav";
+import LocationNoticeHost from "@/components/LocationNoticeHost";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import TopNav, { TopNavView } from "@/components/TopNav";
 import { SITE_DESCRIPTION, SITE_INDEXING, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <BottomNav />
         </Suspense>
         <ServiceWorkerRegister />
+        <LocationNoticeHost />
       </body>
     </html>
   );

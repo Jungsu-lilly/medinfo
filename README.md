@@ -1,9 +1,32 @@
-# medinfo — 병원 가기 전에 찾아보는 서비스
+# 병원값 · [병원값.com](https://xn--639ao13amqh.com)
 
-비급여 진료비 비교 · 병원 검색 · 응급실 실시간 현황. 공공데이터 수집 파이프라인 + DevOps 종합 프로젝트.
+[![deploy](https://github.com/Jungsu-lilly/medinfo/actions/workflows/deploy.yml/badge.svg)](https://github.com/Jungsu-lilly/medinfo/actions/workflows/deploy.yml)
 
-- 설계 문서: claude.ai 프로젝트 `claude/의료-프로젝트-전환-계획.md`, `claude/의료-DB-스키마.sql`
-- 이름(`medinfo`, 패키지 `com.medinfo`)은 임시. 바꾸려면 `settings.gradle`, 패키지 폴더, `application.yml`의 `spring.application.name`
+**병원 가기 전에 찾아보는 서비스.** 공공데이터로 만든 실서비스입니다.
+
+- **비급여 가격 비교**: MRI, 도수치료, 예방접종 등 병원급 비급여 진료비를 지역별로 싼 순으로 비교
+- **병원 찾기**: 이름·가까운 순으로 찾고, 병원별 비급여 가격 목록 보기
+- **응급실 현황**: 가까운 응급실의 남은 병상을 2분마다 갱신
+
+데이터: 건강보험심사평가원 비급여진료비정보·병원정보, 국립중앙의료원 응급의료정보 (공공데이터포털)
+
+## 구성
+
+```
+사용자 ─HTTPS─▶ ALB ─▶ EC2 (Docker: web blue|green ─▶ api 같은 색) ─▶ RDS PostgreSQL 16 + PostGIS
+                                    api 안 Quartz·Spring Batch ──▶ 공공데이터 API (수집·적재)
+```
+
+| | |
+|---|---|
+| 화면 | Next.js 16 (App Router, 서버 렌더링) |
+| API·수집 | Spring Boot 4.1, Quartz(클러스터), Spring Batch 6 |
+| DB | PostgreSQL 16 + PostGIS, pg_trgm, Flyway |
+| 인프라 | AWS 서울 리전, Terraform ([`infra/`](infra/README.md)) |
+| 배포 | GitHub Actions → ECR → Blue/Green 무중단 전환 ([`deploy.yml`](.github/workflows/deploy.yml)) |
+
+저장소 이름 `medinfo`와 패키지 `com.medinfo`는 서비스 이름이 정해지기 전부터 쓰던 이름이라 그대로 둡니다.
+설계 문서: claude.ai 프로젝트 `claude/의료-프로젝트-전환-계획.md`, `claude/의료-DB-스키마.sql`
 
 ## 기술 스택
 

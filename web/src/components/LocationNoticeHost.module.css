@@ -1,0 +1,75 @@
+/* 아래에서 올라오는 안내 창. PC에서는 가운데 */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 12px 12px 0 0;
+  background: var(--bg);
+}
+
+@media (min-width: 960px) {
+  .backdrop {
+    align-items: center;
+  }
+
+  .sheet {
+    border-radius: 8px;
+  }
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.body {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--ink-2);
+  word-break: keep-all;
+}
+
+.body b {
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.actions button {
+  height: 46px;
+  font-size: 15px;
+}
+
+.primary {
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
