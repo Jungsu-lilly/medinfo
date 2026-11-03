@@ -106,8 +106,9 @@ jobs:
           INSTANCE=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=$PROJECT-app" "Name=instance-state-name,Values=running" \
             --query 'Reservations[0].Instances[0].InstanceId' --output text)
-          ACTIVE_TG=$(aws elbv2 describe-listeners --listener-arns "$LISTENER" \
-            --query 'Listeners[0].DefaultActions[0].TargetGroupArn' --output text)
+          # 지금 트래픽을 받는 대상 그룹 = 가중치가 가장 큰 쪽 (가중치 설정이 없으면 단일 대상)
+          ACTIVE_TG=$(aws elbv2 describe-listeners --listener-arns "$LISTENER" --output json \
+            | jq -r '.Listeners[0].DefaultActions[0] | ((.ForwardConfig.TargetGroups // []) | max_by(.Weight) | .TargetGroupArn) // .TargetGroupArn')
           if [ "$ACTIVE_TG" = "$TG_GREEN" ]; then
             ACTIVE=green; TARGET=blue; TARGET_TG=$TG_BLUE; OLD_TG=$TG_GREEN; PORT=3000; OLD_PORT=3001
           else
@@ -151,6 +152,15 @@ jobs:
           echo "결과: $STATUS"
           [ "$STATUS" = "Success" ]
 
+      # ALB는 리스너에 연결된 대상 그룹만 헬스체크한다 (연결 안 된 그룹의 대상은 계속 unused)
+      # → 새 대상 그룹을 가중치 0으로 같이 연결: 헬스체크는 돌고 트래픽은 여전히 지금 색 100%
+      - name: 새 대상 그룹을 리스너에 가중치 0으로 연결
+        id: attach
+        run: |
+          aws elbv2 modify-listener --listener-arn "$LISTENER" --default-actions \
+            "Type=forward,ForwardConfig={TargetGroups=[{TargetGroupArn=$OLD_TG,Weight=100},{TargetGroupArn=$TARGET_TG,Weight=0}]}" > /dev/null
+          echo "$TARGET 대상 그룹 연결 (가중치 0), 트래픽은 $ACTIVE 100%"
+
       - name: ALB 대상 그룹에 등록 · healthy 대기
         id: register
         run: |
@@ -185,6 +195,9 @@ jobs:
       - name: 실패 정리
         if: failure() && steps.switch.outcome != 'success' && env.TARGET != ''
         run: |
+          # 리스너를 지금 색 하나만 가리키게 되돌림 (가중치 0으로 붙인 새 대상 그룹 떼기)
+          aws elbv2 modify-listener --listener-arn "$LISTENER" \
+            --default-actions "Type=forward,TargetGroupArn=$OLD_TG" > /dev/null || true
           aws elbv2 deregister-targets --target-group-arn "$TARGET_TG" --targets "Id=$INSTANCE,Port=$PORT" || true
           aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
             --comment "rollback $TARGET" \
