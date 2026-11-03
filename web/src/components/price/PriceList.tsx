@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import AdSlot from "@/components/AdSlot";
+import { ADSENSE_SLOTS } from "@/lib/site";
 import type { PriceRow } from "@/lib/api";
 import { diffFromMedian, distance, won } from "@/lib/format";
 import { RoughNotice } from "@/components/location/LocationPicker";
@@ -123,7 +124,7 @@ export default function PriceList({
             rows.length > 1 && r.minPrice === min ? "최저" : rows.length > 1 && r.minPrice === max ? "최고" : "";
           return (
             <li key={r.hospitalId} className={styles.rowItem}>
-              {i === AD_AFTER && <AdSlot />}
+              {i === AD_AFTER && <AdSlot slot={ADSENSE_SLOTS.priceList} />}
               <Link href={`/hospital/${r.hospitalId}`} className="row-link">
                 <span className={styles.rowMain}>
                   <span className={styles.rowName}>
@@ -148,7 +149,7 @@ export default function PriceList({
           );
         })}
       </ol>
-      {visible.length > 0 && visible.length <= AD_AFTER && <AdSlot />}
+      {visible.length > 0 && visible.length <= AD_AFTER && <AdSlot slot={ADSENSE_SLOTS.priceList} />}
       {visible.length === 0 && <p className={styles.empty}>이 조건에 맞는 병원이 없어요.</p>}
 
       {rest > 0 && (
