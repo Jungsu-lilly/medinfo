@@ -27,15 +27,20 @@ export default function PrivacyPage() {
         <h2 style={h2}>쿠키와 광고</h2>
         <p style={p}>
           이 사이트는 Google 애드센스 광고를 게재할 수 있습니다. Google을 포함한 제3자 광고 사업자는 쿠키를 사용해
-          이용자의 이 사이트 및 다른 사이트 방문 기록을 바탕으로 광고를 제공할 수 있습니다. 이용자는 Google 광고 설정에서
-          맞춤 광고를 끌 수 있습니다.
+          이용자의 이 사이트 및 다른 사이트 방문 기록을 바탕으로 광고를 제공할 수 있습니다. 이용자는 Google 광고
+          설정에서 맞춤 광고를 끌 수 있습니다.
         </p>
 
         <h2 style={h2}>접속 기록</h2>
-        <p style={p}>서비스 안정성 확인을 위해 접속 IP, 요청 시각, 브라우저 정보가 서버 로그에 [보관 기간] 동안 남습니다.</p>
+        <p style={p}>서비스 안정성 확인을 위해 접속 IP, 요청 시각, 브라우저 정보가 서버 로그에 30일 동안 남습니다.</p>
 
         <h2 style={h2}>문의</h2>
-        <p style={p}>개인정보 관련 문의: [운영자 이메일 주소]</p>
+        <p style={p}>
+          개인정보 관련 문의:{" "}
+          <a href="mailto:gkwjdtn1235@gmail.com" style={{ textDecoration: "underline" }}>
+            gkwjdtn1235@gmail.com
+          </a>
+        </p>
       </article>
     </>
   );

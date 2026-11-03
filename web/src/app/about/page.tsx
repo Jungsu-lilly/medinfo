@@ -32,7 +32,11 @@ export default function AboutPage() {
         <h2 id="contact" style={h2}>
           문의
         </h2>
-        <p style={p}>[운영자 이메일 주소]</p>
+        <p style={p}>
+          <a href="mailto:gkwjdtn1235@gmail.com" style={{ textDecoration: "underline" }}>
+            gkwjdtn1235@gmail.com
+          </a>
+        </p>
       </article>
     </>
   );
