@@ -118,6 +118,8 @@ module "github_deploy_role" {
 
   project_name         = local.name
   github_repo          = var.github_repo
+  github_owner_id      = var.github_owner_id
+  github_repo_id       = var.github_repo_id
   create_oidc_provider = var.create_github_oidc_provider
   ecr_repository_arns  = module.ecr.repository_arns
   https_listener_arn   = module.alb.https_listener_arn

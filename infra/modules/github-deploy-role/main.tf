@@ -20,6 +20,17 @@ data "aws_iam_openid_connect_provider" "github" {
 
 locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
+
+  # 토큰의 sub 값. 2026-07-15 이후 만든 저장소는 이름 뒤에 바뀌지 않는 ID가 붙는다
+  #   예전: repo:Jungsu-lilly/medinfo:ref:refs/heads/main
+  #   지금: repo:Jungsu-lilly@56336436/medinfo@1428310945:ref:refs/heads/main
+  # (이름만 보면 저장소를 지우고 같은 이름으로 다시 만든 사람도 통과 → ID로 막음)
+  # https://github.blog/changelog/2026-04-23-immutable-subject-claims-for-github-actions-oidc-tokens
+  owner = split("/", var.github_repo)[0]
+  repo  = split("/", var.github_repo)[1]
+  subjects = [
+    "repo:${local.owner}@${var.github_owner_id}/${local.repo}@${var.github_repo_id}:ref:refs/heads/${var.branch}",
+  ]
 }
 
 data "aws_iam_policy_document" "trust" {
@@ -37,7 +48,7 @@ data "aws_iam_policy_document" "trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/${var.branch}"]
+      values   = local.subjects
     }
   }
 }
