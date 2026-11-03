@@ -7,6 +7,16 @@ variable "github_repo" {
   type        = string
 }
 
+variable "github_owner_id" {
+  description = "저장소 소유자 숫자 ID (gh api repos/<owner>/<repo> --jq .owner.id)"
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "저장소 숫자 ID (gh api repos/<owner>/<repo> --jq .id)"
+  type        = string
+}
+
 variable "branch" {
   type    = string
   default = "main"

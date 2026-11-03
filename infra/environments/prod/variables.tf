@@ -20,6 +20,17 @@ variable "github_repo" {
   default = "Jungsu-lilly/medinfo"
 }
 
+# GitHub OIDC 토큰 sub에 들어가는 바뀌지 않는 ID (저장소를 다시 만들면 바뀜)
+variable "github_owner_id" {
+  type    = string
+  default = "56336436"
+}
+
+variable "github_repo_id" {
+  type    = string
+  default = "1428310945"
+}
+
 variable "create_github_oidc_provider" {
   description = "계정에 GitHub OIDC 공급자가 없을 때만 true"
   type        = bool
