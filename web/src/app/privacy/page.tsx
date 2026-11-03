@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import BackHeader from "@/components/BackHeader";
 
 export const metadata: Metadata = { title: "개인정보처리방침" };
@@ -36,10 +37,11 @@ export default function PrivacyPage() {
 
         <h2 style={h2}>문의</h2>
         <p style={p}>
-          개인정보 관련 문의:{" "}
-          <a href="mailto:gkwjdtn1235@gmail.com" style={{ textDecoration: "underline" }}>
-            gkwjdtn1235@gmail.com
-          </a>
+          개인정보 관련 문의는{" "}
+          <Link href="/contact" style={{ textDecoration: "underline" }}>
+            문의
+          </Link>{" "}
+          페이지로 보내 주세요.
         </p>
       </article>
     </>
