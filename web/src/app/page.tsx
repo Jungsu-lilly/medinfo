@@ -63,7 +63,7 @@ export default function HomePage() {
           알고 가면 덜 내는 법
         </h2>
         <ul>
-          {GUIDES.map((g) => (
+          {GUIDES.slice(0, 4).map((g) => (
             <li key={g.slug} className={styles.popRow}>
               <Link href={`/guide/${g.slug}`} className={styles.guideLink}>
                 <span className={styles.guideTitle}>{g.title}</span>
@@ -72,6 +72,9 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
+        <Link href="/guide" className={styles.moreLink}>
+          가이드 {GUIDES.length}개 전체 보기 →
+        </Link>
       </section>
 
       <SiteFooter />

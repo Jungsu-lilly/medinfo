@@ -25,7 +25,7 @@ const VACCINES = [
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const url = (path: string) => `${SITE_URL}${path}`;
-  const fixed = ["/", "/hospital", "/er", "/about", "/contact", "/privacy"].map((p) => ({ url: url(p) }));
+  const fixed = ["/", "/hospital", "/er", "/guide", "/about", "/contact", "/privacy"].map((p) => ({ url: url(p) }));
   const guides = GUIDES.map((g) => ({ url: url(`/guide/${g.slug}`) }));
   const vaccines = VACCINES.map((v) => ({ url: url(`/vaccine/${v}`) }));
   const { data } = await getFeatured(undefined, 20);

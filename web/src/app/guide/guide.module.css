@@ -1,0 +1,109 @@
+.article {
+  padding: 8px 16px 24px;
+}
+
+.title {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: -0.5px;
+  word-break: keep-all;
+}
+
+.h2 {
+  margin-top: 28px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 25px;
+  word-break: keep-all;
+}
+
+.p {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ink-2);
+  word-break: keep-all;
+}
+
+.ul {
+  margin-top: 10px;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ink-2);
+  word-break: keep-all;
+}
+
+.ul li + li {
+  margin-top: 6px;
+}
+
+.cta {
+  display: flex;
+  margin-top: 16px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sources {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.sourcesTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sub);
+}
+
+.sources ul {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.sources a {
+  color: var(--sub);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.notice {
+  margin-top: 16px;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--muted);
+}
+
+.list {
+  padding: 0 16px;
+}
+
+.list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 0;
+}
+
+.itemTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: keep-all;
+}
+
+.itemDesc {
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink-2);
+  word-break: keep-all;
+}
