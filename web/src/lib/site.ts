@@ -22,5 +22,5 @@ export const SITE_INDEXING = process.env.SITE_INDEXING === "true";
 export const ADSENSE_CLIENT = "ca-pub-2979099793904209";
 export const ADSENSE_SLOTS = {
   /** 가격 비교 목록 3번째 아래 */
-  priceList: "",
+  priceList: "2008786392", // price-list-inline (디스플레이, 반응형)
 } as const;
