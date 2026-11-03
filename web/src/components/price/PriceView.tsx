@@ -8,16 +8,18 @@ import PriceList from "./PriceList";
 import RegionPicker from "./RegionPicker";
 import styles from "./price.module.css";
 
-export function regionLabel(data: Prices): string {
-  if (data.point) return `내 위치 ${data.point.radiusMeters / 1000}km`;
+/** area = 지역 중심을 기준점으로 쓴 경우 그 지역 이름 (주소창 area) */
+export function regionLabel(data: Prices, area?: string | null): string {
+  if (data.point) return `${area ? `${area} 중심` : "내 위치"} ${data.point.radiusMeters / 1000}km`;
   const r = data.region;
   if (!r) return "";
   return [r.sidoName, r.sgguName ?? "전체"].filter(Boolean).join(" ");
 }
 
 /** 같은 지역(또는 내 위치) 그대로 다른 가격 페이지로 갈 때 붙이는 주소 뒷부분 */
-function sameWhere(data: Prices): string {
-  if (data.point) return `?lat=${data.point.lat}&lng=${data.point.lng}`;
+function sameWhere(data: Prices, area: string | null): string {
+  if (data.point)
+    return `?lat=${data.point.lat}&lng=${data.point.lng}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
   const r = data.region;
   if (!r) return "";
   return `?sido=${r.sido}${r.sggu ? `&sggu=${r.sggu}` : ""}`;
@@ -29,15 +31,19 @@ export default function PriceView({
   regions,
   sort,
   backHref,
+  area = null,
 }: {
   data: Prices;
   regions: Region[];
   sort: "price" | "distance";
   backHref: string;
+  /** 시군구 중심을 기준점으로 쓴 경우 그 이름 */
+  area?: string | null;
 }) {
   const { item, stats, rows, products } = data;
   const isGroup = products !== null;
-  const midPct = stats.high === stats.low ? 0 : Math.round(((stats.median - stats.low) / (stats.high - stats.low)) * 100);
+  const midPct =
+    stats.high === stats.low ? 0 : Math.round(((stats.median - stats.low) / (stats.high - stats.low)) * 100);
 
   return (
     <>
@@ -47,11 +53,13 @@ export default function PriceView({
         sido={data.region?.sido ?? null}
         sggu={data.region?.sggu ?? null}
         nearMe={data.point !== null}
+        nearLabel={regionLabel(data, area)}
+        areaBased={area !== null}
       />
 
       <section aria-label="가격 요약" className={styles.summary}>
         <p className="meta" style={{ marginBottom: 10 }}>
-          {item.path.join(" › ")} · {regionLabel(data)} 병원 {stats.hospitalCount}곳
+          {item.path.join(" › ")} · {regionLabel(data, area)} 병원 {stats.hospitalCount}곳
         </p>
         {stats.hospitalCount > 0 ? (
           <>
@@ -73,7 +81,9 @@ export default function PriceView({
                 </div>
                 <div aria-hidden="true" className={styles.stripLabels}>
                   <span style={{ left: 0 }}>{manwon(stats.low)}</span>
-                  <span style={{ left: `${midPct}%`, transform: "translateX(-50%)", color: "var(--ink)", fontWeight: 600 }}>
+                  <span
+                    style={{ left: `${midPct}%`, transform: "translateX(-50%)", color: "var(--ink)", fontWeight: 600 }}
+                  >
                     중간 {manwon(stats.median)}
                   </span>
                   <span style={{ right: 0 }}>{manwon(stats.high)}</span>
@@ -102,7 +112,7 @@ export default function PriceView({
             <ul>
               {products.map((p) => (
                 <li key={p.code}>
-                  <Link href={`/price/${p.code}${sameWhere(data)}`} className={styles.productLink}>
+                  <Link href={`/price/${p.code}${sameWhere(data, area)}`} className={styles.productLink}>
                     <span className={styles.productName}>{p.name}</span>
                     <span className="meta">
                       최저 {manwon(p.stats.low)}원 · 병원 {p.stats.hospitalCount}곳
@@ -125,6 +135,7 @@ export default function PriceView({
           median={stats.median}
           byDistance={data.point !== null}
           initialSort={sort}
+          region={data.region ? { sido: data.region.sido, sggu: data.region.sggu } : null}
         />
       )}
 

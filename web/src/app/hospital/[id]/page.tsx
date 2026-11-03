@@ -48,7 +48,12 @@ async function HospitalContent({ params }: { params: Props["params"] }) {
     );
   }
 
-  const mapUrl = `https://map.naver.com/p/search/${encodeURIComponent(`${h.name} ${h.addr ?? ""}`.trim())}`;
+  // 길찾기: 좌표가 있으면 카카오맵 길찾기에 도착지로 바로 (이름+좌표라 정확, 앱이 있으면 앱으로 열림)
+  // 좌표가 없으면 네이버 지도 검색. 주소까지 넣으면 "지하1~5층" 같은 건물 안 위치 때문에 검색이 안 됨 → 이름 + 시군구만
+  const mapUrl =
+    h.lat !== null && h.lng !== null
+      ? `https://map.kakao.com/link/to/${encodeURIComponent(h.name)},${h.lat},${h.lng}`
+      : `https://map.naver.com/p/search/${encodeURIComponent(`${h.name} ${h.sgguName ?? ""}`.trim())}`;
   const site = h.homepage ?? h.nonpayUrl;
 
   return (
@@ -121,8 +126,8 @@ function NoPrices({ hospital: h }: { hospital: Hospital }) {
           <>
             <b>의원급 의료기관은 비급여 가격이 공개되지 않아요.</b>
             <br />
-            건강보험심사평가원은 병원급(병원·종합병원·상급종합병원 등)의 비급여 가격만 공개하고 있어요. 이 병원의
-            가격은 전화로 문의해 주세요.
+            건강보험심사평가원은 병원급(병원·종합병원·상급종합병원 등)의 비급여 가격만 공개하고 있어요. 이 병원의 가격은
+            전화로 문의해 주세요.
           </>
         ) : (
           <>

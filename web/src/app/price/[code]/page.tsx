@@ -8,21 +8,25 @@ import { won } from "@/lib/format";
 
 type Props = PageProps<"/price/[code]">;
 
-/** 주소창: /price/ABZ010001?sido=110000&sggu=110016 또는 ?lat=..&lng=.. (내 위치) */
-async function resolve(props: Props): Promise<{ code: string; q: PriceQuery; sort: "price" | "distance" }> {
+/** 주소창: /price/ABZ010001?sido=110000&sggu=110016 또는 ?lat=..&lng=.. (내 위치, 시군구 중심이면 &area=마포구) */
+async function resolve(
+  props: Props,
+): Promise<{ code: string; q: PriceQuery; sort: "price" | "distance"; area: string | null }> {
   const [{ code }, sp] = await Promise.all([props.params, props.searchParams]);
   const lat = coord(sp.lat);
   const lng = coord(sp.lng);
   const sort = sp.sort === "distance" ? "distance" : "price";
-  if (lat !== undefined && lng !== undefined) return { code, q: { lat, lng }, sort };
-  return { code, q: { sido: regionCode(sp.sido) ?? DEFAULT_SIDO, sggu: regionCode(sp.sggu) }, sort };
+  // area = 시군구 중심을 기준점으로 쓴 경우 그 이름 (화면 표시용)
+  const area = typeof sp.area === "string" && sp.area.length <= 20 ? sp.area : null;
+  if (lat !== undefined && lng !== undefined) return { code, q: { lat, lng }, sort, area };
+  return { code, q: { sido: regionCode(sp.sido) ?? DEFAULT_SIDO, sggu: regionCode(sp.sggu) }, sort, area: null };
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const { code, q } = await resolve(props);
+  const { code, q, area } = await resolve(props);
   const { data } = await getPrices(code, q);
   if (!data) return { title: "가격 비교" };
-  const where = regionLabel(data);
+  const where = regionLabel(data, area);
   const s = data.stats;
   return {
     title: `${data.item.name} 가격 비교 (${where})`,
@@ -44,7 +48,7 @@ export default function PricePage(props: Props) {
 }
 
 async function PriceContent(props: Props) {
-  const { code, q, sort } = await resolve(props);
+  const { code, q, sort, area } = await resolve(props);
   const [{ data, error }, regions] = await Promise.all([getPrices(code, q), getRegions()]);
 
   if (!data) {
@@ -57,5 +61,5 @@ async function PriceContent(props: Props) {
       </>
     );
   }
-  return <PriceView data={data} regions={regions.data ?? []} sort={sort} backHref="/" />;
+  return <PriceView data={data} regions={regions.data ?? []} sort={sort} backHref="/" area={area} />;
 }

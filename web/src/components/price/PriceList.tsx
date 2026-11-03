@@ -7,7 +7,7 @@ import AdSlot from "@/components/AdSlot";
 import type { PriceRow } from "@/lib/api";
 import { diffFromMedian, distance, won } from "@/lib/format";
 import { RoughNotice } from "@/components/location/LocationPicker";
-import { coordsQuery, useLocate } from "@/lib/location";
+import { areaCenter, areaQuery, coordsQuery, useLocate } from "@/lib/location";
 import styles from "./price.module.css";
 
 const PAGE = 10;
@@ -20,21 +20,36 @@ export default function PriceList({
   median,
   byDistance,
   initialSort,
+  region,
 }: {
   rows: PriceRow[];
   median: number;
   byDistance: boolean;
   initialSort: "price" | "distance";
+  /** 지금 보고 있는 지역 (지역 기준일 때만) */
+  region: { sido: string; sggu: string | null } | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { state, roughMeters, locate } = useLocate();
+  const { state, roughMeters, locate, reset } = useLocate();
   const [sort, setSort] = useState<"price" | "distance">(byDistance ? initialSort : "price");
 
-  // 가까운 순은 내 위치가 있어야 한다. 아직 지역 기준이면 위치를 받아 내 위치 기준으로 다시 연다
+  // 가까운 순은 기준점이 있어야 한다. 아직 지역 기준이면
+  //   1) 정확한 내 위치(핸드폰 GPS 등)가 있으면 내 위치 기준
+  //   2) 위치가 부정확하거나(PC) 권한이 없으면, 고른 시군구의 중심 기준 (예: 마포구 중심 5km)
+  //   3) 시군구를 안 골랐으면 안내만
   const sortByDistance = () => {
     if (byDistance) return setSort("distance");
-    locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`));
+    locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`), {
+      onUnavailable: () => {
+        if (!region?.sggu) return;
+        void areaCenter(region.sido, region.sggu).then((a) => {
+          if (!a) return;
+          reset();
+          router.push(`${pathname}?${areaQuery(a)}&sort=distance`);
+        });
+      },
+    });
   };
   const [kind, setKind] = useState("전체");
   const [shown, setShown] = useState(PAGE);
@@ -76,7 +91,10 @@ export default function PriceList({
           </button>
         </div>
         {state === "rough" && roughMeters !== null && (
-          <RoughNotice meters={roughMeters} hint="가까운 순 대신 위에서 시도·시군구를 골라 주세요." />
+          <RoughNotice
+            meters={roughMeters}
+            hint="위에서 시군구를 고르면 그 지역 중심에서 가까운 순으로 볼 수 있어요."
+          />
         )}
         {kinds.length > 0 && (
           <div role="group" aria-label="병원 종류" className={styles.chips}>

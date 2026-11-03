@@ -13,11 +13,17 @@ export default function RegionPicker({
   sido,
   sggu,
   nearMe,
+  nearLabel,
+  areaBased,
 }: {
   regions: Region[];
   sido: string | null;
   sggu: string | null;
   nearMe: boolean;
+  /** 반경 기준일 때 선택창에 보일 이름 (내 위치 5km / 마포구 중심 5km) */
+  nearLabel: string;
+  /** 반경 기준점이 내 위치가 아니라 시군구 중심인지 */
+  areaBased: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,7 +44,7 @@ export default function RegionPicker({
           value={nearMe ? "" : (sido ?? "")}
           onChange={(e) => e.target.value && go({ sido: e.target.value })}
         >
-          {nearMe && <option value="">내 위치 5km</option>}
+          {nearMe && <option value="">{nearLabel}</option>}
           {regions.map((r) => (
             <option key={r.code} value={r.code}>
               {r.name}
@@ -72,7 +78,7 @@ export default function RegionPicker({
           className={styles.locateBtn}
           onClick={() => locate((c) => router.push(`${pathname}?${coordsQuery(c)}&sort=distance`))}
           disabled={state === "locating"}
-          aria-pressed={nearMe}
+          aria-pressed={nearMe && !areaBased}
         >
           <LocateIcon />
           {state === "locating" ? "확인 중…" : state === "denied" ? "위치 권한 필요" : "내 위치"}
