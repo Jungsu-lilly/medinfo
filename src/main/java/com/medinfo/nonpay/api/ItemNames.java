@@ -11,14 +11,26 @@ import java.util.Set;
 final class ItemNames {
 
     /** 사람들이 검색하는 말 ↔ 심평원 항목명에 쓰이는 말 */
-    private static final Map<String, List<String>> SYNONYMS = Map.of(
-            "mri", List.of("자기공명"),
-            "자기공명", List.of("MRI"),
-            "ct", List.of("전산화단층"),
-            "독감", List.of("인플루엔자"),
-            "인플루엔자", List.of("독감"),
-            "엑스레이", List.of("X-ray", "단순촬영")
+    private static final Map<String, List<String>> SYNONYMS = Map.ofEntries(
+            Map.entry("mri", List.of("자기공명")),
+            Map.entry("엠알아이", List.of("MRI", "자기공명")),
+            Map.entry("자기공명", List.of("MRI")),
+            Map.entry("ct", List.of("전산화단층")),
+            Map.entry("씨티", List.of("CT", "전산화단층")),
+            Map.entry("독감", List.of("인플루엔자")),
+            Map.entry("인플루엔자", List.of("독감")),
+            Map.entry("엑스레이", List.of("X-ray", "단순촬영")),
+            // 화면 이름("HPV(자궁경부암)", "MMR(홍역·볼거리·풍진)" …)엔 있지만 심평원 항목명엔 없는 말
+            Map.entry("자궁경부암", List.of("사람유두종바이러스", "자궁경부")),
+            Map.entry("볼거리", List.of("유행성이하선염")),
+            Map.entry("뇌수막염", List.of("수막구균")),
+            Map.entry("수막염", List.of("수막구균")),
+            Map.entry("백신", List.of("예방접종")),
+            Map.entry("예방주사", List.of("예방접종"))
     );
+
+    /** 붙여 쓴 검색어 끝에서 떼어 내는 말: "자궁경부암백신" → "자궁경부암 백신" */
+    private static final List<String> TRAILING_WORDS = List.of("예방접종", "예방주사", "백신");
 
     /**
      * 동의어 때문에 딸려 오는 다른 항목 빼기.
@@ -178,8 +190,8 @@ final class ItemNames {
         if (query == null) {
             return out;
         }
-        for (String word : query.trim().split("\\s+")) {
-            if (word.isBlank() || out.size() >= 5) {
+        for (String word : words(query)) {
+            if (out.size() >= 5) {
                 continue;
             }
             List<String> alts = new ArrayList<>();
@@ -210,13 +222,33 @@ final class ItemNames {
         return out.stream().sorted().toList();
     }
 
+    /** 공백으로 나누고, 붙여 쓴 "…백신"·"…예방접종"은 두 단어로 */
+    private static List<String> words(String query) {
+        List<String> out = new ArrayList<>();
+        for (String word : query.trim().split("\\s+")) {
+            if (word.isBlank()) {
+                continue;
+            }
+            String tail = TRAILING_WORDS.stream()
+                    .filter(t -> word.length() > t.length() + 1 && word.endsWith(t))
+                    .findFirst().orElse(null);
+            if (tail == null) {
+                out.add(word);
+            } else {
+                out.add(word.substring(0, word.length() - tail.length()));
+                out.add(tail);
+            }
+        }
+        return out;
+    }
+
     /** 검색어 단어들에 걸린 제외어 (하나라도 들어간 항목은 뺀다) */
     static List<String> excludes(String query) {
         if (query == null) {
             return List.of();
         }
         List<String> out = new ArrayList<>();
-        for (String word : query.trim().split("\\s+")) {
+        for (String word : words(query)) {
             out.addAll(EXCLUDES.getOrDefault(word.toLowerCase(Locale.ROOT), List.of()));
         }
         return out.stream().distinct().toList();

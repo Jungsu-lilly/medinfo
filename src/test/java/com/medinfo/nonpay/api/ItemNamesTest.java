@@ -52,6 +52,16 @@ class ItemNamesTest {
         assertThat(ItemNames.terms("무릎 MRI")).first().isEqualTo(List.of("무릎", "슬관절"));
         assertThat(ItemNames.terms("손목")).containsExactly(List.of("손목", "손목관절", "수관절"));
         assertThat(ItemNames.terms("다리")).containsExactly(List.of("다리", "하지"));
+        // 화면 이름엔 있지만 항목명엔 없는 말 (HPV(자궁경부암), MMR(홍역·볼거리·풍진))
+        assertThat(ItemNames.terms("자궁경부암")).containsExactly(List.of("자궁경부암", "사람유두종바이러스", "자궁경부"));
+        assertThat(ItemNames.terms("볼거리")).containsExactly(List.of("볼거리", "유행성이하선염"));
+        assertThat(ItemNames.terms("엠알아이")).containsExactly(List.of("엠알아이", "MRI", "자기공명"));
+        // 붙여 쓴 "…백신"은 두 단어로
+        assertThat(ItemNames.terms("자궁경부암백신")).containsExactly(
+                List.of("자궁경부암", "사람유두종바이러스", "자궁경부"), List.of("백신", "예방접종"));
+        assertThat(ItemNames.terms("백신")).containsExactly(List.of("백신", "예방접종"));
+        assertThat(ItemNames.terms("예방접종")).containsExactly(List.of("예방접종"));
+        assertThat(ItemNames.excludes("독감백신")).containsExactly("헤모필루스");
         assertThat(ItemNames.terms("  ")).isEmpty();
         assertThat(ItemNames.terms("a b c d e f g")).hasSize(5);
         // 독감으로 찾으면 Hib(b형헤모필루스인플루엔자) 백신은 뺀다
