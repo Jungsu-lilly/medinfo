@@ -8,7 +8,15 @@ import BottomNav, { BottomNavView } from "@/components/BottomNav";
 import LocationNoticeHost from "@/components/LocationNoticeHost";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import TopNav, { TopNavView } from "@/components/TopNav";
-import { ADSENSE_CLIENT, SITE_DESCRIPTION, SITE_INDEXING, SITE_NAME, SITE_URL } from "@/lib/site";
+import {
+  ADSENSE_CLIENT,
+  GA_ENABLED,
+  GA_MEASUREMENT_ID,
+  SITE_DESCRIPTION,
+  SITE_INDEXING,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -34,6 +42,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko">
       <head>
+        {/* GA4: 구글이 안내한 gtag 코드 그대로 <head> 위쪽에 */}
+        {GA_ENABLED && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_MEASUREMENT_ID}');`,
+              }}
+            />
+          </>
+        )}
         {/* 구글 애드센스: 애드센스가 안내한 그대로 <head>에 직접 (사이트 확인이 HTML에서 이 태그를 찾음) */}
         <script
           async

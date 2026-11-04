@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "개인정보처리방침" };
 
 /**
  * 회원가입이 없고, 위치는 가까운 병원·응급실을 찾을 때만 쓰고 저장하지 않는다는 전제.
- * 수집하는 것이 바뀌면(예: 방문 통계 도구 추가) 이 방침과 시행일을 같이 고친다.
+ * 수집하는 것이 바뀌면 이 방침과 시행일을 같이 고친다. (2026-11-04 Google 애널리틱스 추가)
  */
 const p = { fontSize: 14, lineHeight: "24px", color: "var(--ink-2)", marginTop: 10 } as const;
 const h2 = { fontSize: 16, fontWeight: 700, marginTop: 24 } as const;
@@ -30,6 +30,22 @@ export default function PrivacyPage() {
           이 사이트는 Google 애드센스 광고를 게재할 수 있습니다. Google을 포함한 제3자 광고 사업자는 쿠키를 사용해
           이용자의 이 사이트 및 다른 사이트 방문 기록을 바탕으로 광고를 제공할 수 있습니다. 이용자는 Google 광고
           설정에서 맞춤 광고를 끌 수 있습니다.
+        </p>
+
+        <h2 style={h2}>방문 통계</h2>
+        <p style={p}>
+          서비스 개선을 위해 Google 애널리틱스로 방문 통계(본 페이지, 머문 시간, 기기·브라우저 종류, 대략적인 지역)를
+          수집합니다. Google 애널리틱스는 쿠키를 사용하며, 이름·연락처처럼 개인을 알아볼 수 있는 정보는 보내지 않습니다.
+          브라우저 설정에서 쿠키를 차단하거나{" "}
+          <a
+            href="https://tools.google.com/dlpage/gaoptout"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: "underline" }}
+          >
+            Google 애널리틱스 차단 브라우저 부가기능
+          </a>
+          으로 수집을 거부할 수 있습니다.
         </p>
 
         <h2 style={h2}>접속 기록</h2>

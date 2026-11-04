@@ -19,6 +19,14 @@ export const SITE_INDEXING = process.env.SITE_INDEXING === "true";
  * 구글 애드센스 게시자 ID (공개 값). 모든 페이지 <head>에 애드센스 스크립트를 넣고, /ads.txt에도 같은 값
  * 광고 단위 ID는 애드센스 → 광고 → 광고 단위에서 만든 뒤 넣는다. 비어 있으면 그 자리는 그리지 않음
  */
+/**
+ * GA4 측정 ID (공개 값). 애널리틱스 → 관리 → 데이터 스트림 "병원값 웹"
+ * 화면 이동(주소 변경)도 GA4 "향상된 측정 → 브라우저 기록 기반 페이지 변경"으로 자동 집계
+ * 운영 빌드에서만 켬 (로컬 개발 접속이 통계에 섞이지 않게)
+ */
+export const GA_MEASUREMENT_ID = "G-6GLXQV3DYF";
+export const GA_ENABLED = process.env.NODE_ENV === "production";
+
 export const ADSENSE_CLIENT = "ca-pub-2979099793904209";
 export const ADSENSE_SLOTS = {
   /** 가격 비교 목록 3번째 아래 */
