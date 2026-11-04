@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
   formatDetection: { telephone: false },
+  // 네이버 서치어드바이저 소유확인 (구글 서치 콘솔은 public/google…html 파일로 확인). 지우면 소유확인 풀림
+  verification: { other: { "naver-site-verification": "57a8886aca11b303f7efe138b966a5bb578b24c2" } },
 };
 
 export const viewport: Viewport = {
