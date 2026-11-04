@@ -1,5 +1,9 @@
 # main에 머지되면: 테스트 → 이미지 2개(api·web) 빌드·ECR 푸시 → EC2에 새 색 띄우기 → ALB 전환 → 옛 색 내리기
-# 되돌리기: Actions → deploy → Run workflow → tag에 예전 이미지 태그(커밋 앞 7자리) 입력 → 빌드 없이 그 이미지로 배포
+# 되돌리기: Actions → deploy → Run workflow → tag에 예전 이미지 태그 입력 → 빌드 없이 그 이미지로 배포
+# 다시 빌드: Run workflow (tag 비움) → 같은 커밋이어도 새로 빌드 (SITE_INDEXING 등 빌드 설정만 바꿨을 때)
+#
+# 이미지 태그 = 커밋 앞 7자리. 같은 커밋을 다시 빌드하면 "-실행번호"를 붙임 (ECR 태그는 덮어쓰기 불가)
+#   예) 7ac32bb, 7ac32bb-41
 #
 # 저장소 Settings → Secrets and variables → Actions → Variables 에 필요한 것
 #   AWS_ROLE_ARN   terraform output github_deploy_role_arn
@@ -18,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "되돌리기: 이미 올라간 이미지 태그(커밋 앞 7자리). 비우면 지금 커밋을 빌드해서 배포"
+        description: "되돌리기: 이미 올라간 이미지 태그(7ac32bb, 7ac32bb-41 등). 비우면 지금 커밋을 빌드해서 배포"
         required: false
         default: ""
 
@@ -41,9 +45,32 @@ jobs:
     if: github.event_name == 'push' || inputs.tag == ''
     uses: ./.github/workflows/ci.yml
 
+  # 이미지 태그 정하기: 커밋 앞 7자리, 이미 ECR에 있으면(같은 커밋 다시 빌드) 뒤에 실행번호
+  tag:
+    if: vars.AWS_ROLE_ARN != '' && (github.event_name == 'push' || inputs.tag == '')
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: pick
+        run: |
+          TAG=${GITHUB_SHA::7}
+          for repo in api web; do
+            if aws ecr describe-images --repository-name "$PROJECT-$repo" --image-ids imageTag="$TAG" > /dev/null 2>&1; then
+              TAG="$TAG-$GITHUB_RUN_NUMBER"
+              break
+            fi
+          done
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "이미지 태그: $TAG"
+
   build:
     name: build ${{ matrix.name }}
-    needs: test
+    needs: [test, tag]
     # AWS가 아직 없으면(AWS_ROLE_ARN 미설정) 테스트만 하고 끝
     if: vars.AWS_ROLE_ARN != ''
     runs-on: ubuntu-latest
@@ -62,15 +89,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
-      - id: meta
-        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           push: true
-          # 태그 = 커밋 앞 7자리 (되돌릴 때 이 값을 입력)
-          tags: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ matrix.name }}:${{ steps.meta.outputs.tag }}
+          # 되돌릴 때 이 태그를 입력
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ matrix.name }}:${{ needs.tag.outputs.tag }}
           # web만 쓰는 값 (api 빌드에선 무시됨)
           build-args: |
             BACKEND_URL=http://api:8080
@@ -80,7 +105,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   deploy:
-    needs: build
+    needs: [tag, build]
     # 되돌리기(tag 입력)면 test·build가 건너뛰어진 상태로 실행
     if: always() && vars.AWS_ROLE_ARN != '' && (needs.build.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.tag != ''))
     runs-on: ubuntu-latest
@@ -96,9 +121,10 @@ jobs:
         id: find
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          BUILT_TAG: ${{ needs.tag.outputs.tag }}
         run: |
-          TAG=${INPUT_TAG:-${GITHUB_SHA::7}}
-          [[ "$TAG" =~ ^[0-9a-f]{7}$ ]] || { echo "태그는 커밋 앞 7자리: $TAG"; exit 1; }
+          TAG=${INPUT_TAG:-$BUILT_TAG}
+          [[ "$TAG" =~ ^[0-9a-f]{7}(-[0-9]+)?$ ]] || { echo "태그 형식: 커밋 앞 7자리(-실행번호): $TAG"; exit 1; }
           LB_ARN=$(aws elbv2 describe-load-balancers --names "$PROJECT-alb" --query 'LoadBalancers[0].LoadBalancerArn' --output text)
           LISTENER=$(aws elbv2 describe-listeners --load-balancer-arn "$LB_ARN" --query "Listeners[?Port==\`443\`].ListenerArn | [0]" --output text)
           TG_BLUE=$(aws elbv2 describe-target-groups --names "$PROJECT-blue" --query 'TargetGroups[0].TargetGroupArn' --output text)
