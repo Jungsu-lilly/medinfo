@@ -1,0 +1,26 @@
+.ad {
+  margin: 12px 0;
+}
+
+/* 광고가 안 채워지면(승인 전·재고 없음) "광고" 표시까지 통째로 숨김 */
+.ad:has(ins[data-ad-status="unfilled"]) {
+  display: none;
+}
+
+.label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* 높이를 고정해 화면을 덮지 않게: 모바일 320x100, 넓은 화면 728x90 */
+.unit {
+  display: block;
+  width: 100%;
+  height: 100px;
+}
+
+@media (min-width: 768px) {
+  .unit {
+    height: 90px;
+  }
+}
