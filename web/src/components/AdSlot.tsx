@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ADSENSE_CLIENT } from "@/lib/site";
+import styles from "./AdSlot.module.css";
 
 declare global {
   interface Window {
@@ -12,6 +13,7 @@ declare global {
 /**
  * 애드센스 광고 단위 한 칸. "광고" 표시를 붙여 병원 순위와 구분한다 (순위에는 섞지 않음).
  * slot이 비어 있으면(광고 단위를 아직 안 만듦) 아무것도 그리지 않는다. 응급실 화면에는 쓰지 않는다.
+ * 높이는 CSS로 고정 (data-ad-format="auto"는 모바일에서 화면 절반 넘게 차지함)
  */
 export default function AdSlot({ slot }: { slot: string }) {
   const pushed = useRef(false);
@@ -28,16 +30,9 @@ export default function AdSlot({ slot }: { slot: string }) {
 
   if (!slot) return null;
   return (
-    <aside aria-label="광고" style={{ margin: "12px 0" }}>
-      <span style={{ fontSize: 11, color: "var(--muted)" }}>광고</span>
-      <ins
-        className="adsbygoogle"
-        style={{ display: "block" }}
-        data-ad-client={ADSENSE_CLIENT}
-        data-ad-slot={slot}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-      />
+    <aside aria-label="광고" className={styles.ad}>
+      <span className={styles.label}>광고</span>
+      <ins className={`adsbygoogle ${styles.unit}`} data-ad-client={ADSENSE_CLIENT} data-ad-slot={slot} />
     </aside>
   );
 }
