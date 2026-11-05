@@ -1,0 +1,30 @@
+# 임시: ARM 이미지 빌드가 되는지 머지 전에 확인 (푸시 안 함). 확인 후 삭제
+name: arm-build-check
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: arm64 빌드 ${{ matrix.name }}
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        include:
+          - name: api
+            context: .
+          - name: web
+            context: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/arm64
+          push: false
+          build-args: |
+            BACKEND_URL=http://api:8080
+            SITE_URL=https://xn--639ao13amqh.com
+            SITE_INDEXING=false
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
