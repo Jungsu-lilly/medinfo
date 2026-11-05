@@ -25,7 +25,7 @@ resource "aws_security_group" "app" {
   }
 
   egress {
-    description = "ECR, SSM, public data API, RDS, Let's Encrypt"
+    description = "ECR, SSM, public data API, RDS"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
