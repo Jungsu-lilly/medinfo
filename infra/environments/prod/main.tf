@@ -1,13 +1,12 @@
 # 병원값 운영 환경
-#   인터넷 ─HTTPS─▶ ALB ─▶ EC2(web blue|green ─▶ api 같은 색) ─▶ RDS PostgreSQL
+#   인터넷 ─HTTPS─▶ EC2 고정 IP ─▶ Caddy ─▶ web blue|green ─▶ api 같은 색 ─▶ RDS PostgreSQL
+#   (2026-11 ALB를 빼고 Caddy로: 서버 1대라 ALB가 고가용성을 못 주는데 비용의 약 35% → infra/README.md)
 # 비밀값 중 공공데이터 인증키는 Terraform 밖에서 SSM에 직접 넣는다 (상태 파일에 남지 않게) → infra/README.md
 
 locals {
   name        = var.project_name
   db_name     = "medinfo"
   db_username = "medinfo"
-  # 색별 web 포트 (EC2 호스트). 배포 스크립트(deploy/deploy.sh)와 같아야 함
-  color_ports = { blue = 3000, green = 3001 }
 }
 
 data "aws_route53_zone" "this" {
@@ -23,42 +22,17 @@ module "network" {
   azs                  = ["ap-northeast-2a", "ap-northeast-2c"]
   public_subnet_cidrs  = ["10.1.1.0/24", "10.1.2.0/24"]
   private_subnet_cidrs = ["10.1.11.0/24", "10.1.12.0/24"]
-  app_port_from        = local.color_ports.blue
-  app_port_to          = local.color_ports.green
 }
 
-module "certificate" {
-  source = "../../modules/certificate"
-
-  domain  = var.domain
-  zone_id = data.aws_route53_zone.this.zone_id
-}
-
-module "alb" {
-  source = "../../modules/alb"
-
-  project_name      = local.name
-  vpc_id            = module.network.vpc_id
-  public_subnet_ids = module.network.public_subnet_ids
-  security_group_id = module.network.alb_security_group_id
-  certificate_arn   = module.certificate.certificate_arn
-  domain            = var.domain
-  color_ports       = local.color_ports
-}
-
-# 병원값.com, www.병원값.com → ALB
+# 병원값.com, www.병원값.com → EC2 고정 IP (HTTPS 인증서는 서버 안 Caddy가 Let's Encrypt로 발급)
 resource "aws_route53_record" "site" {
   for_each = toset([var.domain, "www.${var.domain}"])
 
   zone_id = data.aws_route53_zone.this.zone_id
   name    = each.value
   type    = "A"
-
-  alias {
-    name                   = module.alb.alb_dns_name
-    zone_id                = module.alb.alb_zone_id
-    evaluate_target_health = true
-  }
+  ttl     = 300
+  records = [module.app_server.public_ip]
 }
 
 module "ecr" {
@@ -122,7 +96,5 @@ module "github_deploy_role" {
   github_repo_id       = var.github_repo_id
   create_oidc_provider = var.create_github_oidc_provider
   ecr_repository_arns  = module.ecr.repository_arns
-  https_listener_arn   = module.alb.https_listener_arn
-  target_group_arns    = values(module.alb.target_group_arns)
   instance_arn         = module.app_server.instance_arn
 }

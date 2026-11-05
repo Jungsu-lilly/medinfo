@@ -8,8 +8,8 @@
 인프라 코드·만드는 순서는 [`infra/README.md`](../infra/README.md).
 
 ```
-사용자 ── HTTPS ──▶ ALB ──▶ web (Next.js, :3000|:3001) ── /api/* 도 여기서 같은 색 api로 ──▶ api (Spring Boot, :8080)
-                    blue·green 대상 그룹 중 하나                                                       │
+사용자 ── HTTPS ──▶ Caddy ──▶ web (Next.js, :3000|:3001) ── /api/* 도 여기서 같은 색 api로 ──▶ api (Spring Boot, :8080)
+                    (EC2 안) blue·green 중 하나                                                      │
                                                                                                          ▼
                                                                                     PostgreSQL 16 + PostGIS (RDS)
 api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ 공공데이터포털 API
@@ -18,9 +18,9 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 | 컨테이너 | 이미지 빌드 | 포트 | 헬스체크 |
 |---|---|---|---|
 | api | 루트 `Dockerfile` | 8080 서비스 / **8081 관리** | `GET :8081/actuator/health/readiness` (EC2 안에서만, 호스트 9000·9001) |
-| web | `web/Dockerfile` | 3000 (호스트 blue 3000 · green 3001) | `GET :3000/healthz` (ALB) |
+| web | `web/Dockerfile` | 3000 (호스트 blue 3000 · green 3001) | `GET :3000/healthz` (배포 스크립트·switch.sh) |
 
-- **ALB는 web만 본다**: 브라우저의 `/api/*`도 web(Next rewrites)이 같은 색 api로 넘긴다. 한 색 = web + api 한 쌍이라 전환은 대상 그룹 하나만 바꾸면 됨 (2026-11-02 변경. 처음엔 `/api/*`를 ALB에서 api로 바로 보내려 했음 → 대상 그룹 4개 + 리스너 규칙 2곳을 같이 바꿔야 해서 단순하게)
+- **앞단(Caddy)은 web만 본다**: 브라우저의 `/api/*`도 web(Next rewrites)이 같은 색 api로 넘긴다. 한 색 = web + api 한 쌍이라 전환은 web 포트 하나만 바꾸면 됨 (2026-11-02. 2026-11 ALB → EC2 안 Caddy로 바꿈, 이유는 `infra/README.md`)
 - **8081(관리 포트)은 밖에 열지 않는다**: EC2의 127.0.0.1에만 열림 (`/actuator/prometheus`가 외부에 보이면 안 됨)
 - 로컬에서 운영 이미지 미리 띄우기: `docker compose -f compose.prod-local.yml up --build`
 
@@ -49,7 +49,7 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 ## 3. Blue/Green 배포 때 앱 쪽에서 맞춰둔 것
 
 - **스케줄 잡 중복 실행 없음**: Quartz 클러스터 모드(같은 DB). 두 버전이 동시에 떠 있어도 같은 잡은 한 번만
-- **종료 신호를 받으면 30초 동안 처리 중인 요청을 마무리** (`server.shutdown=graceful`) → ALB 대상 그룹의 등록 해제 지연(deregistration delay)도 30~35초로 맞출 것
+- **종료 신호를 받으면 30초 동안 처리 중인 요청을 마무리** (`server.shutdown=graceful`) → 전환 뒤 옛 색을 내리기 전 30초 기다림 (deploy.yml "옛 색 내리기")
 - **비급여 적재(1~2시간)는 종료를 기다리지 않음** → 끊겨도 다음 매시간 실행이 Spring Batch 체크포인트부터 이어받음
 - **DB 마이그레이션(Flyway)은 새 버전이 기동할 때 실행** → 구버전이 아직 떠 있는 동안에도 동작하는 변경만 한 번에 배포한다
   - 컬럼 추가·테이블 추가: 바로 가능
@@ -87,7 +87,7 @@ api 안의 Quartz(클러스터) ── 2분/매일/매주/매시간 ──▶ �
 ## 8. 도메인: 병원값.com (2026-11-02 확정)
 
 한글 도메인(IDN)은 시스템 안에서는 **퓨니코드** `xn--639ao13amqh.com`으로 다룬다.
-- Route 53 호스팅 영역, ACM 인증서(`xn--639ao13amqh.com` + `www.`), ALB 리스너 규칙, `SITE_URL` 모두 퓨니코드
+- Route 53 호스팅 영역, HTTPS 인증서(Caddy·Let's Encrypt, `xn--639ao13amqh.com` + `www.`), Caddyfile, `SITE_URL` 모두 퓨니코드
 - 브라우저 주소창에는 한글(병원값.com)로 보임. 카카오톡 등 일부 앱은 링크를 퓨니코드로 보여줄 수 있음
 - 문의용 이메일은 한글 도메인 주소가 깨지는 메일 서비스가 있어 일반 메일 주소를 쓰는 게 안전
 

@@ -1,6 +1,6 @@
 # GitHub Actions가 AWS에 접속하는 역할 (OIDC, 액세스 키 없음)
 # main 브랜치의 워크플로만 이 역할을 쓸 수 있고, 할 수 있는 일은 배포에 필요한 것뿐:
-#   ECR 이미지 올리기 / ALB 대상 바꾸기 / EC2에 SSM 명령 보내기
+#   ECR 이미지 올리기 / EC2 찾기 / EC2에 SSM 명령 보내기 (색 전환은 서버 안 Caddy가 함)
 
 data "aws_region" "current" {}
 
@@ -84,26 +84,11 @@ data "aws_iam_policy_document" "deploy" {
   statement {
     sid = "Describe"
     actions = [
-      "elasticloadbalancing:DescribeListeners",
-      "elasticloadbalancing:DescribeLoadBalancers",
-      "elasticloadbalancing:DescribeTargetGroups",
-      "elasticloadbalancing:DescribeTargetHealth",
       "ec2:DescribeInstances",
+      "ssm:DescribeInstanceInformation",
       "ssm:GetCommandInvocation",
     ]
     resources = ["*"]
-  }
-
-  statement {
-    sid       = "SwitchListener"
-    actions   = ["elasticloadbalancing:ModifyListener"]
-    resources = [var.https_listener_arn]
-  }
-
-  statement {
-    sid       = "RegisterTargets"
-    actions   = ["elasticloadbalancing:RegisterTargets", "elasticloadbalancing:DeregisterTargets"]
-    resources = var.target_group_arns
   }
 
   statement {

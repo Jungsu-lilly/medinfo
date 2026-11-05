@@ -38,8 +38,9 @@ variable "create_github_oidc_provider" {
 }
 
 variable "app_instance_type" {
-  type    = string
-  default = "t3.medium"
+  description = "ARM(t4g). x86(t3)로 바꾸면 app_server의 architecture와 deploy.yml 빌드 플랫폼도 같이"
+  type        = string
+  default     = "t4g.medium"
 }
 
 variable "db_instance_class" {

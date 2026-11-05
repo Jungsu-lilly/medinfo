@@ -20,12 +20,12 @@ spring:
 
 server:
   shutdown: graceful
-  # ALB 뒤: X-Forwarded-For/Proto를 믿고 실제 클라이언트 IP·https를 인식
+  # Caddy·web(Next) 뒤: X-Forwarded-For/Proto를 믿고 실제 클라이언트 IP·https를 인식
   forward-headers-strategy: native
 
 management:
   server:
-    # 헬스체크·Prometheus 지표는 별도 포트 → ALB 리스너에는 8080만 열어 외부에서 지표가 안 보이게
+    # 헬스체크·Prometheus 지표는 별도 포트 → 서버 안(127.0.0.1)에만 열어 외부에서 지표가 안 보이게
     port: 8081
 
 logging:

@@ -39,3 +39,32 @@ jobs:
       - run: npm run build
         env:
           SITE_INDEXING: "false"
+
+  infra:
+    name: 인프라·배포 스크립트 검사
+    # PR에서만 (배포 때는 이미 PR에서 통과한 코드)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+      - name: terraform fmt · validate (상태·AWS 접속 없이)
+        working-directory: infra/environments/prod
+        run: |
+          terraform fmt -check -recursive ../..
+          terraform init -backend=false -input=false
+          terraform validate
+      - name: 배포 스크립트 (shellcheck)
+        run: shellcheck deploy/*.sh .github/scripts/*.sh infra/modules/app-server/user_data.sh
+      - name: Caddyfile · compose 문법
+        working-directory: deploy
+        run: |
+          mkdir -p /tmp/caddy && cp Caddyfile /tmp/caddy/ && echo "reverse_proxy 127.0.0.1:3000" > /tmp/caddy/active.caddy
+          docker run --rm -v /tmp/caddy:/etc/caddy:ro "$(grep -oP 'image: \K\S+' edge.yml)" \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          AWS_REGION=ap-northeast-2 docker compose -f edge.yml config -q
+          touch .env
+          AWS_REGION=ap-northeast-2 API_IMAGE=x WEB_IMAGE=x WEB_PORT=3000 MGMT_PORT=9000 COLOR=blue \
+            docker compose -f compose.yml config -q

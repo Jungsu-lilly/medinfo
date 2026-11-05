@@ -13,7 +13,7 @@
 ## 구성
 
 ```
-사용자 ─HTTPS─▶ ALB ─▶ EC2 (Docker: web blue|green ─▶ api 같은 색) ─▶ RDS PostgreSQL 16 + PostGIS
+사용자 ─HTTPS─▶ EC2 (Caddy ─▶ Docker: web blue|green ─▶ api 같은 색) ─▶ RDS PostgreSQL 16 + PostGIS
                                     api 안 Quartz·Spring Batch ──▶ 공공데이터 API (수집·적재)
 ```
 

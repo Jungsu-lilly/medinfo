@@ -32,14 +32,6 @@ variable "ecr_repository_arns" {
   type = list(string)
 }
 
-variable "https_listener_arn" {
-  type = string
-}
-
-variable "target_group_arns" {
-  type = list(string)
-}
-
 variable "instance_arn" {
   type = string
 }

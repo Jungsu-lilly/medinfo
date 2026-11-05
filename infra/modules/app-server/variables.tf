@@ -11,9 +11,20 @@ variable "security_group_id" {
 }
 
 variable "instance_type" {
-  description = "web·api 한 쌍 약 1.5GB, 전환 중엔 두 쌍 → 4GB"
+  description = "web·api 한 쌍 약 1.5GB, 전환 중엔 두 쌍 → 4GB. architecture와 맞아야 함 (t4g = arm64)"
   type        = string
-  default     = "t3.medium"
+  default     = "t4g.medium"
+}
+
+variable "architecture" {
+  description = "AMI 아키텍처: arm64(t4g·Graviton) 또는 x86_64(t3). 이미지 빌드(deploy.yml platforms)와 같아야 함"
+  type        = string
+  default     = "arm64"
+
+  validation {
+    condition     = contains(["arm64", "x86_64"], var.architecture)
+    error_message = "arm64 또는 x86_64"
+  }
 }
 
 variable "root_volume_gb" {
