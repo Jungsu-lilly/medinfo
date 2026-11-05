@@ -7,8 +7,9 @@ output "site_url" {
   value = "https://${var.domain}"
 }
 
-output "alb_dns_name" {
-  value = module.alb.alb_dns_name
+output "app_public_ip" {
+  description = "고정 공인 IP (병원값.com A 레코드)"
+  value       = module.app_server.public_ip
 }
 
 output "app_instance_id" {

@@ -1,12 +1,15 @@
 #!/bin/bash
 # EC2 첫 부팅 때 한 번 실행 (Amazon Linux 2023). 로그: /var/log/cloud-init-output.log
+# Terraform templatefile이 compose_version을 채운다
+# shellcheck disable=SC2154
 set -euxo pipefail
 
 # Docker + compose 플러그인 (AL2023 저장소엔 compose가 없어서 GitHub 릴리스에서 받음)
 dnf install -y docker
 systemctl enable --now docker
 mkdir -p /usr/local/lib/docker/cli-plugins
-curl -fsSL "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64" \
+# 파일 이름 끝 = uname -m (x86_64 | aarch64)
+curl -fsSL "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-$(uname -m)" \
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 

@@ -1,13 +1,14 @@
-# 앱 서버 EC2 한 대: Docker로 web·api를 색(blue·green)별 한 쌍씩 띄운다
+# 앱 서버 EC2 한 대: Docker로 web·api를 색(blue·green)별 한 쌍씩 띄우고, 앞단 Caddy가 HTTPS를 받는다
 # Flicker와 다른 점: EC2도 Terraform으로 만든다 (Flicker는 콘솔에서 만듦)
 #   - SSH 없음: 접속·배포는 SSM (보안 그룹에 22번 없음)
+#   - 고정 IP(탄력적 IP): 도메인 A 레코드가 가리킴. 서버를 다시 만들어도 IP는 그대로
 #   - 비밀값은 SSM Parameter Store(/<project>/prod/*) → 배포 스크립트가 읽어 .env로
 
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 data "aws_ssm_parameter" "al2023" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${var.architecture}"
 }
 
 locals {
@@ -113,15 +114,27 @@ resource "aws_instance" "this" {
     encrypted   = true
   }
 
-  # T3 기본값 unlimited는 CPU를 오래 많이 쓰면 추가 과금 → standard(크레딧 다 쓰면 느려짐)로 예측 가능하게
+  # T3·T4g 기본값 unlimited는 CPU를 오래 많이 쓰면 추가 과금 → standard(크레딧 다 쓰면 느려짐)로 예측 가능하게
   credit_specification {
     cpu_credits = "standard"
   }
 
   # AMI가 새로 나오거나 user_data를 고쳐도 서버를 갈아엎지 않는다 (바꾸려면 terraform apply -replace)
+  # 아키텍처(x86↔ARM)를 바꿀 때도 -replace 필요 → infra/README.md
   lifecycle {
     ignore_changes = [ami, user_data]
   }
 
   tags = { Name = "${var.project_name}-app" }
+}
+
+# 고정 공인 IP. 연결은 따로 둬서 서버를 다시 만들어도 IP는 유지 (DNS를 안 바꿔도 됨)
+resource "aws_eip" "this" {
+  domain = "vpc"
+  tags   = { Name = "${var.project_name}-app" }
+}
+
+resource "aws_eip_association" "this" {
+  instance_id   = aws_instance.this.id
+  allocation_id = aws_eip.this.id
 }

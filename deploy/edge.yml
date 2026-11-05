@@ -1,0 +1,23 @@
+# 운영 EC2 앞단: Caddy 하나 (ALB 대신 HTTPS·Blue/Green 전환 담당)
+#   docker compose -p medinfo-edge -f edge.yml up -d   ← switch.sh가 실행
+# host 네트워크: 80·443을 바로 받고, 127.0.0.1:3000(blue)|3001(green)의 web으로 넘긴다
+# 관리 API(:2019)도 127.0.0.1에만 열림 → reload는 컨테이너 안에서 실행
+
+x-logging: &logging
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION}
+    awslogs-group: /medinfo/prod
+    tag: "{{.Name}}"
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./caddy:/etc/caddy:ro # Caddyfile + active.caddy
+      - ./caddy-data:/data # 인증서·계정 키 (지우면 재발급 → Let's Encrypt 주당 발급 한도 주의)
+      - ./caddy-config:/config
+    mem_limit: 128m
+    logging: *logging

@@ -1,14 +1,16 @@
-# main에 머지되면: 테스트 → 이미지 2개(api·web) 빌드·ECR 푸시 → EC2에 새 색 띄우기 → ALB 전환 → 옛 색 내리기
+# main에 머지되면: 테스트 → 이미지 2개(api·web) 빌드·ECR 푸시 → EC2에 새 색 띄우기 → Caddy 전환 → 옛 색 내리기
 # 되돌리기: Actions → deploy → Run workflow → tag에 예전 이미지 태그 입력 → 빌드 없이 그 이미지로 배포
 # 다시 빌드: Run workflow (tag 비움) → 같은 커밋이어도 새로 빌드 (SITE_INDEXING 등 빌드 설정만 바꿨을 때)
 #
 # 이미지 태그 = 커밋 앞 7자리. 같은 커밋을 다시 빌드하면 "-실행번호"를 붙임 (ECR 태그는 덮어쓰기 불가)
 #   예) 7ac32bb, 7ac32bb-41
+# 이미지는 ARM(arm64)만 빌드 (서버 t4g). 2026-11 Caddy 전환 전의 태그는 x86이라 되돌리기 대상이 아님
 #
 # 저장소 Settings → Secrets and variables → Actions → Variables 에 필요한 것
 #   AWS_ROLE_ARN   terraform output github_deploy_role_arn
 #   SITE_INDEXING  공개 전 false(없으면 false), 오픈할 때 true
-# AWS 리소스(ALB·대상 그룹·EC2)는 이름(medinfo-…)으로 찾는다 → 시크릿에 ARN을 따로 넣지 않음
+# EC2는 이름 태그(medinfo-app)로 찾는다 → 시크릿에 ID를 따로 넣지 않음
+# 지금 서비스 중인 색은 EC2의 /opt/medinfo/active-color (switch.sh가 기록)
 name: deploy
 
 on:
@@ -73,7 +75,8 @@ jobs:
     needs: [test, tag]
     # AWS가 아직 없으면(AWS_ROLE_ARN 미설정) 테스트만 하고 끝
     if: vars.AWS_ROLE_ARN != ''
-    runs-on: ubuntu-latest
+    # 서버가 ARM(t4g)이라 ARM 러너에서 바로 빌드 (QEMU 에뮬레이션 없이). 공개 저장소는 무료
+    runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
         include:
@@ -93,6 +96,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          platforms: linux/arm64
           push: true
           # 되돌릴 때 이 태그를 입력
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.PROJECT }}-${{ matrix.name }}:${{ needs.tag.outputs.tag }}
@@ -110,6 +114,9 @@ jobs:
     if: always() && vars.AWS_ROLE_ARN != '' && (needs.build.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.tag != ''))
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -117,116 +124,67 @@ jobs:
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: 리소스 찾기 · 지금 색 확인
-        id: find
+      - name: 서버 찾기 · 지금 색 확인
         env:
           INPUT_TAG: ${{ inputs.tag }}
           BUILT_TAG: ${{ needs.tag.outputs.tag }}
         run: |
           TAG=${INPUT_TAG:-$BUILT_TAG}
           [[ "$TAG" =~ ^[0-9a-f]{7}(-[0-9]+)?$ ]] || { echo "태그 형식: 커밋 앞 7자리(-실행번호): $TAG"; exit 1; }
-          LB_ARN=$(aws elbv2 describe-load-balancers --names "$PROJECT-alb" --query 'LoadBalancers[0].LoadBalancerArn' --output text)
-          LISTENER=$(aws elbv2 describe-listeners --load-balancer-arn "$LB_ARN" --query "Listeners[?Port==\`443\`].ListenerArn | [0]" --output text)
-          TG_BLUE=$(aws elbv2 describe-target-groups --names "$PROJECT-blue" --query 'TargetGroups[0].TargetGroupArn' --output text)
-          TG_GREEN=$(aws elbv2 describe-target-groups --names "$PROJECT-green" --query 'TargetGroups[0].TargetGroupArn' --output text)
           INSTANCE=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=$PROJECT-app" "Name=instance-state-name,Values=running" \
             --query 'Reservations[0].Instances[0].InstanceId' --output text)
-          # 지금 트래픽을 받는 대상 그룹 = 가중치가 가장 큰 쪽 (가중치 설정이 없으면 단일 대상)
-          ACTIVE_TG=$(aws elbv2 describe-listeners --listener-arns "$LISTENER" --output json \
-            | jq -r '.Listeners[0].DefaultActions[0] | ((.ForwardConfig.TargetGroups // []) | max_by(.Weight) | .TargetGroupArn) // .TargetGroupArn')
-          if [ "$ACTIVE_TG" = "$TG_GREEN" ]; then
-            ACTIVE=green; TARGET=blue; TARGET_TG=$TG_BLUE; OLD_TG=$TG_GREEN; PORT=3000; OLD_PORT=3001
-          else
-            ACTIVE=blue; TARGET=green; TARGET_TG=$TG_GREEN; OLD_TG=$TG_BLUE; PORT=3001; OLD_PORT=3000
-          fi
-          {
-            echo "TAG=$TAG"; echo "LISTENER=$LISTENER"; echo "INSTANCE=$INSTANCE"
-            echo "ACTIVE=$ACTIVE"; echo "TARGET=$TARGET"; echo "PORT=$PORT"; echo "OLD_PORT=$OLD_PORT"
-            echo "TARGET_TG=$TARGET_TG"; echo "OLD_TG=$OLD_TG"
-          } >> "$GITHUB_ENV"
-          echo "지금: $ACTIVE → 새로 띄울 색: $TARGET (web :$PORT), 이미지 $TAG, 서버 $INSTANCE"
+          [ "$INSTANCE" != "None" ] || { echo "실행 중인 $PROJECT-app 서버 없음"; exit 1; }
 
-      - name: EC2에 새 색 띄우기 (SSM)
-        id: up
+          # 서버를 새로 만든 직후면 SSM 에이전트가 붙을 때까지 기다림 (최대 5분)
+          for i in $(seq 1 60); do
+            PING=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE" \
+              --query 'InstanceInformationList[0].PingStatus' --output text)
+            [ "$PING" = "Online" ] && break
+            [ "$i" -eq 60 ] && { echo "SSM 연결 안 됨: $INSTANCE ($PING)"; exit 1; }
+            sleep 5
+          done
+
+          # 조회 자체가 실패하면 여기서 멈춤 (색을 잘못 골라 서비스 중인 색을 덮어쓰지 않게)
+          OUT=$(.github/scripts/ssm-run.sh "$INSTANCE" "read active color" \
+            "cat /opt/medinfo/active-color 2>/dev/null || echo none")
+          ACTIVE=$(echo "$OUT" | grep -Eo '^(blue|green|none)' | tail -n 1 || true)
+          case "$ACTIVE" in
+            blue) TARGET=green ;;
+            green) TARGET=blue ;;
+            *) ACTIVE=none; TARGET=blue ;; # 첫 배포 (서버 새로 만듦)
+          esac
+          { echo "TAG=$TAG"; echo "INSTANCE=$INSTANCE"; echo "ACTIVE=$ACTIVE"; echo "TARGET=$TARGET"; } >> "$GITHUB_ENV"
+          echo "지금: $ACTIVE → 새로 띄울 색: $TARGET, 이미지 $TAG, 서버 $INSTANCE"
+
+      - name: EC2에 새 색 띄우기
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
           RAW=https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/deploy
-          PARAMS=$(jq -n --arg raw "$RAW" --arg color "$TARGET" --arg tag "$TAG" --arg reg "$REGISTRY" '{
-            commands: [
-              "set -e",
-              "mkdir -p /opt/medinfo && cd /opt/medinfo",
-              "for f in compose.yml deploy.sh cleanup.sh; do curl -fsSL \($raw)/$f -o $f; done",
-              "bash deploy.sh \($color) \($tag) \($reg)"
-            ],
-            executionTimeout: ["900"]
-          }')
-          CMD=$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
-            --comment "deploy $TARGET $TAG" --parameters "$PARAMS" --query 'Command.CommandId' --output text)
-          echo "SSM 명령 $CMD"
-          for _ in $(seq 1 120); do
-            sleep 5
-            STATUS=$(aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE" \
-              --query Status --output text 2>/dev/null || echo Pending)
-            case "$STATUS" in
-              Success|Failed|Cancelled|TimedOut) break ;;
-            esac
-          done
-          aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE" \
-            --query '[StandardOutputContent, StandardErrorContent]' --output text || true
-          echo "결과: $STATUS"
-          [ "$STATUS" = "Success" ]
+          .github/scripts/ssm-run.sh "$INSTANCE" "deploy $TARGET $TAG" \
+            "set -e" \
+            "cloud-init status --wait > /dev/null || true" \
+            "mkdir -p /opt/medinfo && cd /opt/medinfo" \
+            "for f in compose.yml deploy.sh cleanup.sh switch.sh edge.yml Caddyfile; do curl -fsSL $RAW/\$f -o \$f; done" \
+            "bash deploy.sh $TARGET $TAG $REGISTRY"
 
-      # ALB는 리스너에 연결된 대상 그룹만 헬스체크한다 (연결 안 된 그룹의 대상은 계속 unused)
-      # → 새 대상 그룹을 가중치 0으로 같이 연결: 헬스체크는 돌고 트래픽은 여전히 지금 색 100%
-      - name: 새 대상 그룹을 리스너에 가중치 0으로 연결
-        id: attach
-        run: |
-          aws elbv2 modify-listener --listener-arn "$LISTENER" --default-actions \
-            "Type=forward,ForwardConfig={TargetGroups=[{TargetGroupArn=$OLD_TG,Weight=100},{TargetGroupArn=$TARGET_TG,Weight=0}]}" > /dev/null
-          echo "$TARGET 대상 그룹 연결 (가중치 0), 트래픽은 $ACTIVE 100%"
-
-      - name: ALB 대상 그룹에 등록 · healthy 대기
-        id: register
-        run: |
-          aws elbv2 register-targets --target-group-arn "$TARGET_TG" --targets "Id=$INSTANCE,Port=$PORT"
-          for i in $(seq 1 60); do
-            STATE=$(aws elbv2 describe-target-health --target-group-arn "$TARGET_TG" \
-              --targets "Id=$INSTANCE,Port=$PORT" --query 'TargetHealthDescriptions[0].TargetHealth.State' --output text)
-            echo "[$i] $STATE"
-            [ "$STATE" = "healthy" ] && exit 0
-            sleep 5
-          done
-          echo "5분 안에 healthy가 되지 않음 → 전환 안 함"
-          exit 1
-
-      - name: 트래픽 전환 (HTTPS 리스너 → 새 색)
+      # Caddy가 보내는 곳을 새 색으로 바꾸고 실제 도메인으로 확인. 실패하면 switch.sh가 이전 색으로 되돌림
+      - name: 트래픽 전환 (Caddy)
         id: switch
         run: |
-          aws elbv2 modify-listener --listener-arn "$LISTENER" \
-            --default-actions "Type=forward,TargetGroupArn=$TARGET_TG" > /dev/null
-          echo "전환 완료: $ACTIVE → $TARGET"
+          .github/scripts/ssm-run.sh "$INSTANCE" "switch $TARGET" "cd /opt/medinfo" "bash switch.sh $TARGET"
 
       - name: 옛 색 내리기
+        if: env.ACTIVE != 'none'
         run: |
-          aws elbv2 deregister-targets --target-group-arn "$OLD_TG" --targets "Id=$INSTANCE,Port=$OLD_PORT" || true
-          sleep 40 # 대상 그룹 등록 해제 지연(35초) 동안 처리 중인 요청을 마무리
-          aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
-            --comment "cleanup $ACTIVE" \
-            --parameters "{\"commands\":[\"bash /opt/medinfo/cleanup.sh $ACTIVE\"]}" \
-            --query 'Command.CommandId' --output text
+          # Caddy reload 전에 들어온 요청이 옛 색에서 끝날 시간 (앱 graceful shutdown 30초와 맞춤)
+          .github/scripts/ssm-run.sh "$INSTANCE" "cleanup $ACTIVE" "sleep 30" "bash /opt/medinfo/cleanup.sh $ACTIVE"
 
       # 전환 전에 실패하면 새로 띄운 색만 치운다 (서비스 중인 색은 그대로)
+      # 첫 배포(ACTIVE=none)는 원인을 볼 수 있게 남겨 둔다
       - name: 실패 정리
-        if: failure() && steps.switch.outcome != 'success' && env.TARGET != ''
+        if: failure() && steps.switch.outcome != 'success' && env.TARGET != '' && env.ACTIVE != 'none'
         run: |
-          # 리스너를 지금 색 하나만 가리키게 되돌림 (가중치 0으로 붙인 새 대상 그룹 떼기)
-          aws elbv2 modify-listener --listener-arn "$LISTENER" \
-            --default-actions "Type=forward,TargetGroupArn=$OLD_TG" > /dev/null || true
-          aws elbv2 deregister-targets --target-group-arn "$TARGET_TG" --targets "Id=$INSTANCE,Port=$PORT" || true
-          aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
-            --comment "rollback $TARGET" \
-            --parameters "{\"commands\":[\"bash /opt/medinfo/cleanup.sh $TARGET\"]}" \
-            --query 'Command.CommandId' --output text || true
+          .github/scripts/ssm-run.sh "$INSTANCE" "rollback $TARGET" "bash /opt/medinfo/cleanup.sh $TARGET" || true
           echo "새 색($TARGET)을 내렸음. 서비스는 $ACTIVE 그대로"

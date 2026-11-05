@@ -1,6 +1,6 @@
-# VPC: public 서브넷(ALB·EC2) + private 서브넷(RDS)
+# VPC: public 서브넷(EC2) + private 서브넷(RDS)
 # Flicker와 다른 점: NAT 게이트웨이 없음 (월 약 45달러 절약)
-#   - EC2는 public 서브넷 + 공인 IP로 바깥(ECR·SSM·공공데이터 API)에 직접 나감. 들어오는 건 보안 그룹으로 ALB만 허용
+#   - EC2는 public 서브넷 + 공인 IP로 바깥(ECR·SSM·공공데이터 API)에 직접 나감. 들어오는 건 보안 그룹으로 80·443만 허용
 #   - RDS는 private 서브넷이라 바깥으로 나갈 일이 없음
 
 resource "aws_vpc" "this" {

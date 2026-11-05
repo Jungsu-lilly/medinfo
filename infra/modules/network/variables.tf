@@ -17,13 +17,3 @@ variable "public_subnet_cidrs" {
 variable "private_subnet_cidrs" {
   type = list(string)
 }
-
-variable "app_port_from" {
-  description = "ALB가 EC2로 보내는 포트 범위 시작 (web blue)"
-  type        = number
-}
-
-variable "app_port_to" {
-  description = "ALB가 EC2로 보내는 포트 범위 끝 (web green)"
-  type        = number
-}
