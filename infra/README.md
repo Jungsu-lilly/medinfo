@@ -1,8 +1,11 @@
 # 병원값 인프라 (Terraform)
 
 ```
-인터넷 ─HTTPS─▶ EC2 t4g.medium (ARM, 고정 IP) ───────────────────────▶ RDS PostgreSQL 16 (db.t4g.micro)
- 병원값.com      ├ Caddy :80·443 (Let's Encrypt 인증서 자동)               (private 서브넷)
+인터넷 ─HTTPS─▶ CloudFront (정액 Free 플랜: 초과 요금 없음, WAF·요청 제한, ACM 인증서, /_next/static 캐시)
+ 병원값.com        │ HTTP + 비밀 헤더(X-Origin-Verify)
+                   ▼
+                 EC2 t4g.medium (ARM, 고정 IP = origin.도메인) ───────────▶ RDS PostgreSQL 16 (db.t4g.micro)
+                 ├ Caddy :80 (비밀 헤더 없으면 403)                           (private 서브넷)
                  │   └ active.caddy가 가리키는 색으로 → 배포 때 바꾸고 reload
                  ├ medinfo-blue : web 127.0.0.1:3000 ─▶ api
                  └ medinfo-green: web 127.0.0.1:3001 ─▶ api
