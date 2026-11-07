@@ -98,3 +98,13 @@ module "github_deploy_role" {
   ecr_repository_arns  = module.ecr.repository_arns
   instance_arn         = module.app_server.instance_arn
 }
+
+# 비용 안전장치: 트래픽 급증 시 경고 → 차단기(서버 정지), 월 예산 알림
+module "cost_guard" {
+  source = "../../modules/cost-guard"
+
+  project_name   = local.name
+  alert_email    = var.alert_email
+  instance_id    = module.app_server.instance_id
+  log_group_name = module.app_server.log_group_name
+}

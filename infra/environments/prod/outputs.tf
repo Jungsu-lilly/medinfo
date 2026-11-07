@@ -25,6 +25,11 @@ output "db_address" {
   value = module.rds.address
 }
 
+output "alerts_topic_arn" {
+  description = "비용·트래픽 알림 SNS 주제 (나중에 다른 알람도 여기로)"
+  value       = module.cost_guard.alerts_topic_arn
+}
+
 output "log_group" {
   value = module.app_server.log_group_name
 }

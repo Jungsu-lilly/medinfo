@@ -47,3 +47,8 @@ variable "db_instance_class" {
   type    = string
   default = "db.t4g.micro"
 }
+
+variable "alert_email" {
+  description = "비용·트래픽 알림 받을 메일. terraform.tfvars에만 넣고 저장소에 올리지 않음"
+  type        = string
+}

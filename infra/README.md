@@ -95,6 +95,27 @@ GitHub Actions ─OIDC─▶ ECR(medinfo-api, medinfo-web, arm64) / SSM으로 EC
 더 줄일 때: 3~6개월 써 보고 1년 약정(Compute Savings Plan, RDS 예약 인스턴스) → 약 7.5만 원.
 RDS는 PostgreSQL 최소 크기(db.t4g.micro·20GB). EC2는 배포 중 두 색이 같이 떠서 4GB 필요 → t4g.small(2GB) 불가
 
+## 비용 안전장치 (`modules/cost-guard`)
+
+AWS에는 "얼마가 되면 결제를 멈추는" 한도가 없다. 고정비(EC2·RDS·IP)는 트래픽과 상관없지만,
+**밖으로 나가는 데이터(GB당 약 0.13달러)와 로그 수집량은 트래픽만큼 늘어난다** → 봇이 퍼부으면 하루 수십~수백 달러 가능.
+(EC2 t4g.medium 지속 대역폭 약 0.26Gbps ≈ 하루 2.7TB ≈ 350달러가 이론상 최대)
+
+| 장치 | 기준 | 동작 | 반응 |
+|---|---|---|---|
+| 트래픽 경고 | EC2 NetworkOut 5분에 300MB 초과 | 메일 | 5분 |
+| **차단기** | 5분에 1GB 초과가 10분 계속 | **EC2 자동 정지** + 메일 | 10~15분 → 최악 약 3달러에서 멈춤 |
+| 로그 경고 | `/medinfo/prod` 수집량 1시간 200MB 초과 | 메일 | 1시간 |
+| 월 예산 | 65달러(부가세 포함 약 10만 원): 실제 80%, 예상 100% | 메일 | 청구 데이터 기준 몇 시간 |
+
+- 알림 메일: `terraform.tfvars`의 `alert_email` (저장소에 안 올림). 처음 apply 뒤 AWS에서 온 메일의 **Confirm subscription**을 눌러야 받음
+- Caddy 접속 기록에서 정적 파일(JS·CSS·폰트·아이콘) 요청은 빼서 로그 양을 줄임 (`deploy/Caddyfile`의 `log_skip`)
+
+**차단기가 작동했을 때**
+1. CloudWatch → 로그 그룹 `/medinfo/prod` → `medinfo-edge-caddy-1`에서 어떤 IP·주소로 몰렸는지 확인
+2. 공격이면: 막을 방법을 먼저 적용 (CloudFront·WAF 등) / 실제 사용자 급증이면: 기준값(`egress_stop_bytes_per_5min`)을 올림
+3. EC2 콘솔에서 `medinfo-app` **시작** → 고정 IP 그대로, 컨테이너(Caddy·blue|green)는 `restart: unless-stopped`라 자동으로 다시 뜸
+
 ## ALB → Caddy 전환 (2026-11, 한 번만)
 
 바뀌는 것: ALB·대상 그룹·ACM 인증서 삭제 / EC2를 ARM(t4g.medium)으로 다시 만듦 / 고정 IP 추가 / DNS를 고정 IP로.
