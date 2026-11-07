@@ -25,13 +25,14 @@ module "network" {
 }
 
 # 병원값.com, www.병원값.com → EC2 고정 IP (HTTPS 인증서는 서버 안 Caddy가 Let's Encrypt로 발급)
+# CloudFront로 옮기기 직전이라 TTL을 60초로 낮춤 (전환 때 옛 주소가 빨리 사라지게)
 resource "aws_route53_record" "site" {
   for_each = toset([var.domain, "www.${var.domain}"])
 
   zone_id = data.aws_route53_zone.this.zone_id
   name    = each.value
   type    = "A"
-  ttl     = 300
+  ttl     = 60
   records = [module.app_server.public_ip]
 }
 
@@ -107,4 +108,31 @@ module "cost_guard" {
   alert_email    = var.alert_email
   instance_id    = module.app_server.instance_id
   log_group_name = module.app_server.log_group_name
+}
+
+# CloudFront → Caddy 비밀 헤더. SSM에 넣어 두면 배포 스크립트가 .env로 받아 Caddy에 넘긴다
+resource "random_password" "origin_verify" {
+  length  = 40
+  special = false
+}
+
+resource "aws_ssm_parameter" "origin_verify" {
+  name  = "/${local.name}/prod/ORIGIN_VERIFY"
+  type  = "SecureString"
+  value = random_password.origin_verify.result
+}
+
+# CloudFront (정액 요금제 Free 플랜은 콘솔에서 가입 → infra/README.md)
+module "cdn" {
+  source = "../../modules/cdn"
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  project_name         = local.name
+  domain               = var.domain
+  zone_id              = data.aws_route53_zone.this.zone_id
+  origin_ip            = module.app_server.public_ip
+  origin_verify_secret = random_password.origin_verify.result
 }

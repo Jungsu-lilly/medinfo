@@ -15,6 +15,7 @@ services:
     image: caddy:2.10-alpine
     restart: unless-stopped
     network_mode: host
+    env_file: caddy.env # ORIGIN_VERIFY (CloudFront 비밀 헤더). switch.sh가 .env에서 뽑아 만듦
     volumes:
       - ./caddy:/etc/caddy:ro # Caddyfile + active.caddy
       - ./caddy-data:/data # 인증서·계정 키 (지우면 재발급 → Let's Encrypt 주당 발급 한도 주의)

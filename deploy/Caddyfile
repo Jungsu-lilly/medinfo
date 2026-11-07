@@ -1,23 +1,48 @@
 # 병원값 앞단 (EC2 안 Caddy, Docker host 네트워크)
-#   - HTTPS 인증서: Let's Encrypt에서 자동 발급·갱신 (/opt/medinfo/caddy-data 에 보관 → 컨테이너를 다시 만들어도 유지)
-#   - http(80) → https 자동
-#   - 지금 서비스 중인 색은 active.caddy 한 줄 (switch.sh가 바꾸고 caddy reload → 처리 중인 요청은 안 끊김)
-# 배포 때마다 switch.sh가 이 파일을 /opt/medinfo/caddy/ 로 복사한다
+#   지금 서비스 중인 색은 active.caddy 한 줄 (switch.sh가 바꾸고 caddy reload → 처리 중인 요청은 안 끊김)
+#   배포 때마다 switch.sh가 이 파일을 /opt/medinfo/caddy/ 로 복사한다
+#
+# CloudFront 전환 기간 (2026-11): 두 길을 같이 받는다
+#   1. CloudFront → http://(도메인|origin.도메인) :80, 비밀 헤더(X-Origin-Verify) 있음 → 앱으로
+#   2. DNS가 아직 이 서버를 가리키는 동안 브라우저가 바로 오는 길 → https (Let's Encrypt)
+#   DNS를 CloudFront로 옮긴 뒤 2는 지운다
 
-xn--639ao13amqh.com {
-	# 접속 기록(JSON 한 줄) → stdout → CloudWatch /medinfo/prod. 쿠키·인증 헤더는 Caddy가 기본으로 가림
+# 접속 기록(JSON 한 줄) → stdout → CloudWatch /medinfo/prod. 쿠키·인증 헤더는 Caddy가 기본으로 가림
+# 정적 파일(JS·CSS·폰트·아이콘)은 기록하지 않음: 페이지 하나에 수십 개라 로그 요금만 늘고 분석엔 안 씀
+(access_log) {
 	log {
 		output stdout
 		format json
 	}
-	# 정적 파일(JS·CSS·폰트·아이콘)은 기록하지 않음: 페이지 하나에 수십 개라 로그 요금만 늘고 분석엔 안 씀
 	@static path /_next/static/* /_next/image* /icons/* /icon* /apple-icon* /favicon.ico /sw.js /manifest.webmanifest
 	log_skip @static
+}
 
+# 1. CloudFront에서 오는 길
+http://xn--639ao13amqh.com, http://www.xn--639ao13amqh.com, http://origin.xn--639ao13amqh.com {
+	import access_log
+
+	@cloudfront header X-Origin-Verify {$ORIGIN_VERIFY}
+	handle @cloudfront {
+		# www.병원값.com → 병원값.com (주소 하나로 모아 검색 노출을 나누지 않음)
+		@www host www.xn--639ao13amqh.com
+		redir @www https://xn--639ao13amqh.com{uri} permanent
+
+		import /etc/caddy/active.caddy
+	}
+
+	# 비밀 헤더 없음 = 브라우저가 서버로 바로 온 http 요청 → https로 (전환 기간)
+	handle {
+		redir https://{host}{uri} permanent
+	}
+}
+
+# 2. 브라우저가 바로 오는 길 (전환 기간만)
+xn--639ao13amqh.com {
+	import access_log
 	import /etc/caddy/active.caddy
 }
 
-# www.병원값.com → 병원값.com (주소 하나로 모아 검색 노출을 나누지 않음)
 www.xn--639ao13amqh.com {
 	redir https://xn--639ao13amqh.com{uri} permanent
 }
