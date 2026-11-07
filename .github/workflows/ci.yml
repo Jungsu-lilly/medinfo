@@ -61,9 +61,11 @@ jobs:
       - name: Caddyfile · compose 문법
         working-directory: deploy
         run: |
-          mkdir -p /tmp/caddy && cp Caddyfile /tmp/caddy/ && echo "reverse_proxy 127.0.0.1:3000" > /tmp/caddy/active.caddy
-          docker run --rm -v /tmp/caddy:/etc/caddy:ro "$(grep -oP 'image: \K\S+' edge.yml)" \
+          mkdir -p /tmp/caddy && cp Caddyfile /tmp/caddy/
+          printf 'reverse_proxy 127.0.0.1:3000 {\n\theader_up X-Forwarded-Proto https\n}\n' > /tmp/caddy/active.caddy
+          docker run --rm -e ORIGIN_VERIFY=ci-test -v /tmp/caddy:/etc/caddy:ro "$(grep -oP 'image: \K\S+' edge.yml)" \
             caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          touch caddy.env
           AWS_REGION=ap-northeast-2 docker compose -f edge.yml config -q
           touch .env
           AWS_REGION=ap-northeast-2 API_IMAGE=x WEB_IMAGE=x WEB_PORT=3000 MGMT_PORT=9000 COLOR=blue \

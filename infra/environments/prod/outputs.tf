@@ -30,6 +30,15 @@ output "alerts_topic_arn" {
   value       = module.cost_guard.alerts_topic_arn
 }
 
+output "cloudfront_domain_name" {
+  description = "전환 전 확인용: curl --resolve 로 이 주소의 IP에 붙여 봄"
+  value       = module.cdn.distribution_domain_name
+}
+
+output "cloudfront_distribution_id" {
+  value = module.cdn.distribution_id
+}
+
 output "log_group" {
   value = module.app_server.log_group_name
 }

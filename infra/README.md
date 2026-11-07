@@ -116,6 +116,30 @@ AWS에는 "얼마가 되면 결제를 멈추는" 한도가 없다. 고정비(EC2
 2. 공격이면: 막을 방법을 먼저 적용 (CloudFront·WAF 등) / 실제 사용자 급증이면: 기준값(`egress_stop_bytes_per_5min`)을 올림
 3. EC2 콘솔에서 `medinfo-app` **시작** → 고정 IP 그대로, 컨테이너(Caddy·blue|green)는 `restart: unless-stopped`라 자동으로 다시 뜸
 
+## CloudFront 전환 (2026-11, 3단계 · 접속 끊김 없이)
+
+왜: 비용 안전장치(차단기)는 응급 브레이크. 근본적으로는 CloudFront **정액 요금제**를 앞에 둬서
+트래픽·공격이 몰려도 **초과 요금 자체가 없게** 한다 (Free 플랜 0원: 월 100만 요청·100GB, 넘으면 느려질 뿐 과금 없음.
+WAF·IP별 요청 제한·DDoS 방어 포함, 막힌 공격은 사용량에도 안 셈. EC2 → CloudFront 전송은 무료)
+
+```
+사용자 ─HTTPS─▶ CloudFront (ACM 인증서, WAF) ─HTTP + 비밀 헤더─▶ origin.도메인 = EC2 Caddy :80 ─▶ web blue|green
+```
+
+**1단계: CloudFront 만들기 (DNS는 그대로)** — `modules/cdn`
+1. `terraform init` (새 모듈) → `terraform plan` → 추가 8 (인증서·검증 레코드·origin 레코드·배포·비밀값), 변경 2 (사이트 레코드 TTL 300→60), 삭제 0 → `apply` (CloudFront 생성 5~10분)
+2. PR 머지 → 배포: Caddy가 CloudFront 요청(비밀 헤더)도 받도록. Caddy 컨테이너를 한 번 다시 만들어서 1~2초 끊김
+3. 콘솔 CloudFront → 배포 → **요금제(Pricing plan) → Free** 가입 (WAF가 자동으로 붙음) → 보안 설정에서 **IP별 요청 제한(rate limiting)** 켜기
+4. 확인 (DNS 바꾸기 전, CloudFront를 직접 거쳐 봄. PowerShell):
+   ```
+   curl.exe -sI https://xn--639ao13amqh.com --connect-to "xn--639ao13amqh.com:443:$(terraform output -raw cloudfront_domain_name):443"
+   ```
+   `HTTP/1.1 200`(또는 HTTP/2 200)과 `x-cache: ... cloudfront`가 나오면 정상
+
+**2단계: DNS를 CloudFront로** — 사이트 레코드 A·AAAA → CloudFront 별칭, Caddy는 CloudFront 요청만 받는 설정으로 (apply 후 2분 기다렸다 머지)
+
+**3단계: 문 잠그기** — EC2 보안 그룹을 CloudFront(관리형 접두사 목록)에서 오는 80번만 허용, 443 닫기
+
 ## ALB → Caddy 전환 (2026-11, 한 번만)
 
 바뀌는 것: ALB·대상 그룹·ACM 인증서 삭제 / EC2를 ARM(t4g.medium)으로 다시 만듦 / 고정 IP 추가 / DNS를 고정 IP로.
