@@ -14,7 +14,9 @@ GitHub Actions ─OIDC─▶ ECR(medinfo-api, medinfo-web, arm64) / SSM으로 EC
 
 | 파일 | 내용 |
 |---|---|
-| `modules/network` | VPC, public·private 서브넷 2개씩, 보안 그룹 (인터넷 80·443 → EC2 → RDS) |
+| `modules/network` | VPC, public·private 서브넷 2개씩, 보안 그룹 (CloudFront → EC2 :80 → RDS) |
+| `modules/cdn` | CloudFront(정액 Free 플랜), ACM 인증서(us-east-1), `origin.` 레코드 |
+| `modules/cost-guard` | 트래픽 경고·차단기(EC2 자동 정지)·로그 경고·월 예산 알림 |
 | `modules/ecr` | 이미지 저장소 2개, 20개만 남김 |
 | `modules/rds` | PostgreSQL 16, 백업 7일, 삭제 보호 |
 | `modules/app-server` | EC2(Docker, ARM), 고정 IP, IAM 역할, CloudWatch 로그 그룹 |
@@ -91,6 +93,7 @@ GitHub Actions ─OIDC─▶ ECR(medinfo-api, medinfo-web, arm64) / SSM으로 EC
 | RDS db.t4g.micro + 20GB | 21 | 21 |
 | ALB | 18 | **0** |
 | 공인 IPv4 | 3개 11 | **1개 4** |
+| CloudFront (정액 Free 플랜, WAF 포함) | – | **0** (초과 요금 없음) |
 | Route 53, ECR, CloudWatch Logs | 2 | 2 |
 | 합계 (달러) | 93 | **59** |
 | **부가세 10% 포함 (1,450원)** | **약 14.8만 원** | **약 9.4만 원** — 예산 월 10만 원 안 |
@@ -119,7 +122,7 @@ AWS에는 "얼마가 되면 결제를 멈추는" 한도가 없다. 고정비(EC2
 2. 공격이면: 막을 방법을 먼저 적용 (CloudFront·WAF 등) / 실제 사용자 급증이면: 기준값(`egress_stop_bytes_per_5min`)을 올림
 3. EC2 콘솔에서 `medinfo-app` **시작** → 고정 IP 그대로, 컨테이너(Caddy·blue|green)는 `restart: unless-stopped`라 자동으로 다시 뜸
 
-## CloudFront 전환 (2026-11, 3단계 · 접속 끊김 없이)
+## CloudFront 전환 (2026-11-07 완료, 3단계 · 접속 끊김 없이)
 
 왜: 비용 안전장치(차단기)는 응급 브레이크. 근본적으로는 CloudFront **정액 요금제**를 앞에 둬서
 트래픽·공격이 몰려도 **초과 요금 자체가 없게** 한다 (Free 플랜 0원: 월 100만 요청·100GB, 넘으면 느려질 뿐 과금 없음.
@@ -142,6 +145,17 @@ WAF·IP별 요청 제한·DDoS 방어 포함, 막힌 공격은 사용량에도 �
 **2단계: DNS를 CloudFront로** — 사이트 레코드 A·AAAA → CloudFront 별칭, Caddy는 CloudFront 요청만 받는 설정으로 (apply 후 2분 기다렸다 머지)
 
 **3단계: 문 잠그기** — EC2 보안 그룹을 CloudFront(관리형 접두사 목록)에서 오는 80번만 허용, 443 닫기
+
+결과 확인 (2026-11-07)
+- `curl -sI https://병원값.com` → `Via: … (CloudFront)`, `X-Amz-Cf-Pop: ICN57`
+- `curl -m 5 http://<EC2 IP>` → 응답 없음 (연결 자체 차단)
+- 배포 blue ↔ green 교대 3회 무중단
+
+막는 순서 (봇·공격이 오면)
+1. CloudFront WAF: IP별 요청 제한, 막힌 요청은 요금제 사용량에도 안 셈
+2. 요금제 한도(월 100만 요청·100GB)를 넘어도 과금 없음, 속도만 조정
+3. EC2는 CloudFront 말고는 연결 불가 → 우회 불가
+4. 그래도 origin 트래픽이 비정상이면 `cost-guard` 차단기가 EC2 정지
 
 ## ALB → Caddy 전환 (2026-11, 한 번만)
 
