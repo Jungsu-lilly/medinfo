@@ -124,7 +124,7 @@ resource "aws_ssm_parameter" "origin_verify" {
 
 # CloudFront (정액 요금제 Free 플랜은 콘솔에서 가입 → infra/README.md)
 module "cdn" {
-  source    = "../../modules/cdn"
+  source = "../../modules/cdn"
   providers = {
     aws           = aws
     aws.us_east_1 = aws.us_east_1
