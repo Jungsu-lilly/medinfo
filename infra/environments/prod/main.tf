@@ -1,5 +1,5 @@
 # 병원값 운영 환경
-#   인터넷 ─HTTPS─▶ EC2 고정 IP ─▶ Caddy ─▶ web blue|green ─▶ api 같은 색 ─▶ RDS PostgreSQL
+#   인터넷 ─HTTPS─▶ CloudFront ─HTTP+비밀 헤더─▶ EC2 고정 IP의 Caddy ─▶ web blue|green ─▶ api 같은 색 ─▶ RDS PostgreSQL
 #   (2026-11 ALB를 빼고 Caddy로: 서버 1대라 ALB가 고가용성을 못 주는데 비용의 약 35% → infra/README.md)
 # 비밀값 중 공공데이터 인증키는 Terraform 밖에서 SSM에 직접 넣는다 (상태 파일에 남지 않게) → infra/README.md
 
@@ -24,16 +24,34 @@ module "network" {
   private_subnet_cidrs = ["10.1.11.0/24", "10.1.12.0/24"]
 }
 
-# 병원값.com, www.병원값.com → EC2 고정 IP (HTTPS 인증서는 서버 안 Caddy가 Let's Encrypt로 발급)
-# CloudFront로 옮기기 직전이라 TTL을 60초로 낮춤 (전환 때 옛 주소가 빨리 사라지게)
+# 병원값.com, www.병원값.com → CloudFront (IPv4 A + IPv6 AAAA 별칭)
+# A는 EC2 고정 IP를 가리키던 그 레코드를 별칭으로 바꿈 (지웠다 만들면 잠깐 주소가 없어지므로 같은 리소스로)
 resource "aws_route53_record" "site" {
   for_each = toset([var.domain, "www.${var.domain}"])
 
   zone_id = data.aws_route53_zone.this.zone_id
   name    = each.value
   type    = "A"
-  ttl     = 60
-  records = [module.app_server.public_ip]
+
+  alias {
+    name                   = module.cdn.distribution_domain_name
+    zone_id                = module.cdn.distribution_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "site_ipv6" {
+  for_each = toset([var.domain, "www.${var.domain}"])
+
+  zone_id = data.aws_route53_zone.this.zone_id
+  name    = each.value
+  type    = "AAAA"
+
+  alias {
+    name                   = module.cdn.distribution_domain_name
+    zone_id                = module.cdn.distribution_zone_id
+    evaluate_target_health = false
+  }
 }
 
 module "ecr" {
