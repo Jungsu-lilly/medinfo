@@ -10,6 +10,9 @@ xn--639ao13amqh.com {
 		output stdout
 		format json
 	}
+	# 정적 파일(JS·CSS·폰트·아이콘)은 기록하지 않음: 페이지 하나에 수십 개라 로그 요금만 늘고 분석엔 안 씀
+	@static path /_next/static/* /_next/image* /icons/* /icon* /apple-icon* /favicon.ico /sw.js /manifest.webmanifest
+	log_skip @static
 
 	import /etc/caddy/active.caddy
 }
