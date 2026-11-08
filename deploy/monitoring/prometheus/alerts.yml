@@ -1,0 +1,66 @@
+# 알람 규칙 (지금은 Prometheus·Grafana 화면에서 상태만 보임. 메일 발송은 다음 단계)
+# for: 그 상태가 이만큼 계속돼야 알람 (잠깐 튀는 건 무시)
+groups:
+  - name: service
+    rules:
+      - alert: ApiDown
+        expr: max(up{job="api"}) == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "api가 blue·green 둘 다 응답 없음"
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(caddy_http_request_duration_seconds_count{handler="reverse_proxy", code=~"5.."}[5m]))
+            / clamp_min(sum(rate(caddy_http_request_duration_seconds_count{handler="reverse_proxy"}[5m])), 1e-9) > 0.05
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "5xx 비율 5% 초과 (5분 평균)"
+
+      - alert: SlowResponses
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(caddy_http_request_duration_seconds_bucket{handler="reverse_proxy"}[5m]))) > 2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "응답 시간 p95가 2초 초과"
+
+  - name: data
+    rules:
+      - alert: ErDataStale
+        expr: time() - max(collector_last_success_epoch_seconds{exported_job="erBed"}) > 1800
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "응급실 병상 수집이 30분 넘게 성공하지 못함"
+
+      - alert: PublicApiQuotaHigh
+        expr: max by (api) (public_api_quota_used / public_api_quota_limit) > 0.9
+        labels: { severity: warning }
+        annotations:
+          summary: "공공데이터 API {{ $labels.api }} 일일 한도 90% 사용"
+
+  - name: host
+    rules:
+      - alert: HostMemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "서버 사용 가능 메모리 10% 미만"
+
+      - alert: HostDiskFull
+        expr: 1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} > 0.85
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "루트 디스크 85% 넘게 사용"
+
+      - alert: MonitoringTargetDown
+        expr: up{job=~"caddy|node|loki|alloy"} == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.job }} 지표 수집 안 됨"

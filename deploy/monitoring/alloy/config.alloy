@@ -1,0 +1,45 @@
+// Alloy: 이 서버의 Docker 컨테이너 로그를 모아 Loki로 보냄
+// (컨테이너는 CloudWatch(awslogs)로도 계속 보냄. Docker가 로컬에도 사본을 남겨서 여기서 같이 읽을 수 있음)
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// 라벨: 컨테이너 이름, compose 서비스(web·api·caddy), 프로젝트(medinfo-blue·green·edge)
+// 라벨 종류는 적게 유지 (Loki는 라벨 조합마다 따로 저장 → 많으면 느려짐). 상태 코드·주소 같은 건 조회할 때 | json 으로 꺼냄
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+  // 모니터링 묶음 자신의 로그는 모으지 않음
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "medinfo-monitoring"
+    action        = "drop"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}
