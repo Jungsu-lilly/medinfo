@@ -63,6 +63,13 @@ for i in $(seq 1 40); do
   sleep 3
 done
 
+# web 실행 환경에 실제 주소가 있는지 (없으면 검색엔진에 noindex·localhost 주소가 나감)
+WEB_SITE_URL=$(docker compose -p "$PROJECT" -f compose.yml exec -T web printenv SITE_URL 2>/dev/null || true)
+case "$WEB_SITE_URL" in
+  https://*) echo "web SITE_URL: $WEB_SITE_URL" ;;
+  *) fail "web 이미지에 SITE_URL이 없음: '$WEB_SITE_URL' (web/Dockerfile 실행 단계 ENV 확인)" ;;
+esac
+
 # web → api 연결까지 확인 (같은 색끼리 붙었는지)
 curl -fsS "http://127.0.0.1:$WEB_PORT/api/regions" > /dev/null || fail "web에서 api 호출 실패"
 
