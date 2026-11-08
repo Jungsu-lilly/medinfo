@@ -70,3 +70,15 @@ jobs:
           touch .env
           AWS_REGION=ap-northeast-2 API_IMAGE=x WEB_IMAGE=x WEB_PORT=3000 MGMT_PORT=9000 COLOR=blue \
             docker compose -f compose.yml config -q
+      - name: 모니터링 설정 (Prometheus·Loki·Alloy·Grafana)
+        working-directory: deploy/monitoring
+        run: |
+          img() { grep -oP 'image: \K\S+' compose.yml | grep -m1 "/$1:"; }
+          docker run --rm --entrypoint promtool -v "$PWD/prometheus:/etc/prometheus:ro" "$(img prometheus)" \
+            check config /etc/prometheus/prometheus.yml
+          docker run --rm -v "$PWD/loki:/etc/loki:ro" "$(img loki)" -config.file=/etc/loki/config.yml -verify-config
+          docker run --rm -v "$PWD/alloy:/etc/alloy:ro" "$(img alloy)" fmt /etc/alloy/config.alloy > /dev/null
+          docker pull -q "$(img node-exporter)" > /dev/null
+          docker pull -q "$(img grafana)" > /dev/null
+          python3 -m json.tool grafana/dashboards/medinfo-overview.json > /dev/null
+          docker compose -f compose.yml config -q

@@ -1,0 +1,9 @@
+# 저장소의 대시보드 JSON을 자동으로 불러옴 (화면에서 고쳐도 다음 배포 때 저장소 버전으로 돌아감 → 고칠 땐 JSON을 PR로)
+apiVersion: 1
+providers:
+  - name: medinfo
+    folder: 병원값
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana-dashboards

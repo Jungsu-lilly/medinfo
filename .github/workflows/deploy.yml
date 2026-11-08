@@ -181,6 +181,17 @@ jobs:
           # Caddy reload 전에 들어온 요청이 옛 색에서 끝날 시간 (앱 graceful shutdown 30초와 맞춤)
           .github/scripts/ssm-run.sh "$INSTANCE" "cleanup $ACTIVE" "sleep 30" "bash /opt/medinfo/cleanup.sh $ACTIVE"
 
+      # 모니터링 묶음(Prometheus·Loki·Alloy·Grafana) 설정 갱신. 앱 전환이 끝난 뒤라 실패해도 서비스엔 영향 없음
+      - name: 모니터링 갱신
+        if: always() && steps.switch.outcome == 'success'
+        run: |
+          TAR=https://codeload.github.com/${{ github.repository }}/tar.gz/${{ github.sha }}
+          .github/scripts/ssm-run.sh "$INSTANCE" "monitoring" \
+            "set -e" \
+            "rm -rf /opt/medinfo/monitoring && mkdir -p /opt/medinfo/monitoring" \
+            "curl -fsSL $TAR | tar -xz --wildcards --strip-components=3 -C /opt/medinfo/monitoring '*/deploy/monitoring/*'" \
+            "bash /opt/medinfo/monitoring/up.sh"
+
       # 전환 전에 실패하면 새로 띄운 색만 치운다 (서비스 중인 색은 그대로)
       # 첫 배포(ACTIVE=none)는 원인을 볼 수 있게 남겨 둔다
       - name: 실패 정리

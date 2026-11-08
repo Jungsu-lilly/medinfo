@@ -1,0 +1,92 @@
+# 운영 EC2 모니터링 묶음 (앱과 같은 서버, 별도 compose 프로젝트)
+#   docker compose -p medinfo-monitoring -f compose.yml up -d   ← up.sh가 실행 (배포 때마다)
+# 전부 host 네트워크 + 127.0.0.1에만 열림 → 밖에서는 안 보임. Grafana는 SSM 포트 포워딩으로만 접속
+#
+#   Prometheus :9090  지표 저장 (15일·3GB 중 먼저 차는 쪽까지)   ← Spring api, Caddy, 서버 지표를 긁어 감
+#   Loki       :3100  로그 저장 (15일)                          ← Alloy가 컨테이너 로그를 밀어 넣음
+#   Alloy      :12345 로그 수집기 (Docker 컨테이너 로그 → Loki)
+#   node-exporter :9100 서버 지표 (CPU·메모리·디스크·네트워크)
+#   Grafana    :3300  화면 (3000·3001은 web blue·green이 씀)
+#
+# 데이터는 /opt/medinfo/monitoring-data/* (컨테이너를 다시 만들어도 유지)
+
+x-logging: &logging
+  # 모니터링 자체 로그는 CloudWatch로 안 보냄 (비용). 서버에 10MB × 3개만 보관
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=3GB
+      - --web.listen-address=127.0.0.1:9090
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - ../monitoring-data/prometheus:/prometheus
+    mem_limit: 400m
+    logging: *logging
+
+  loki:
+    image: grafana/loki:3.5.0
+    restart: unless-stopped
+    network_mode: host
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./loki:/etc/loki:ro
+      - ../monitoring-data/loki:/loki
+    mem_limit: 384m
+    logging: *logging
+
+  alloy:
+    image: grafana/alloy:v1.8.0
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - run
+      - --server.http.listen-addr=127.0.0.1:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy:/etc/alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # 컨테이너 목록·로그 읽기
+    mem_limit: 256m
+    logging: *logging
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=127.0.0.1:9100
+    volumes:
+      - /:/host:ro,rslave
+    mem_limit: 64m
+    logging: *logging
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SERVER_HTTP_PORT: "3300"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana-dashboards:ro
+      - ../monitoring-data/grafana:/var/lib/grafana
+    mem_limit: 256m
+    logging: *logging

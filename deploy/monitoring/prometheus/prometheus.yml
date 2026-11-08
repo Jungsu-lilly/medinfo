@@ -1,0 +1,40 @@
+# Prometheus: 30초마다 각 대상의 /metrics를 긁어 와 저장 (pull 방식)
+# 대상은 전부 같은 서버의 127.0.0.1
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Spring api 관리 포트. blue(9000)·green(9001) 둘 다 등록 → 꺼져 있는 색은 up=0 (정상)
+  # 앱 지표의 job 태그(수집 작업 이름)는 Prometheus의 job과 겹쳐서 exported_job으로 바뀜
+  - job_name: api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9000"]
+        labels: { color: blue }
+      - targets: ["127.0.0.1:9001"]
+        labels: { color: green }
+
+  # Caddy: 요청 수·응답 시간·상태 코드 (관리 API의 /metrics)
+  - job_name: caddy
+    static_configs:
+      - targets: ["127.0.0.1:2019"]
+
+  # 서버: CPU·메모리·디스크·네트워크
+  - job_name: node
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
+
+  # 모니터링 자신
+  - job_name: prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9090"]
+  - job_name: loki
+    static_configs:
+      - targets: ["127.0.0.1:3100"]
+  - job_name: alloy
+    static_configs:
+      - targets: ["127.0.0.1:12345"]

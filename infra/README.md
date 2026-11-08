@@ -81,7 +81,8 @@ GitHub Actions ─OIDC─▶ ECR(medinfo-api, medinfo-web, arm64) / SSM으로 EC
 | 로그 보기 | CloudWatch → 로그 그룹 `/medinfo/prod` (스트림 = 컨테이너 이름) |
 | 서버 접속 | `aws ssm start-session --target $(terraform output -raw app_instance_id)` (Session Manager 플러그인 필요) |
 | 지금 어느 색인지 | 서버의 `/opt/medinfo/active-color` (배포 로그 "지금: blue → …"에도 나옴) |
-| Caddy 접속 기록 | CloudWatch → `/medinfo/prod` → 스트림 `medinfo-edge-caddy-1` (JSON 한 줄씩) |
+| Caddy 접속 기록 | CloudWatch → `/medinfo/prod` → 스트림 `medinfo-edge-caddy-1` (JSON 한 줄씩), 또는 Grafana 대시보드 아래쪽 |
+| 지표·로그 대시보드 | Grafana (SSM 포트 포워딩 → `localhost:3300`) → 아래 "모니터링" |
 | DB 접속 (내 PC에서) | SSM 포트 포워딩: `aws ssm start-session --target <EC2> --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters host=<db_address>,portNumber=5432,localPortNumber=15432` → `localhost:15432`. 비밀번호는 SSM `/medinfo/prod/DB_PASSWORD` |
 
 ## 비용 (서울 리전, 월 대략)
@@ -100,6 +101,37 @@ GitHub Actions ─OIDC─▶ ECR(medinfo-api, medinfo-web, arm64) / SSM으로 EC
 
 더 줄일 때: 3~6개월 써 보고 1년 약정(Compute Savings Plan, RDS 예약 인스턴스) → 약 7.5만 원.
 RDS는 PostgreSQL 최소 크기(db.t4g.micro·20GB). EC2는 배포 중 두 색이 같이 떠서 4GB 필요 → t4g.small(2GB) 불가
+
+## 모니터링 (Prometheus · Loki · Grafana, `deploy/monitoring/`)
+
+앱과 같은 EC2에 별도 compose 프로젝트(`medinfo-monitoring`)로 띄움. 배포 때마다 설정을 갱신(`up.sh`). 추가 비용 거의 0 (디스크만)
+
+```
+Spring api :9000|9001/actuator/prometheus ─┐
+Caddy :2019/metrics ───────────────────────┼─(30초마다 긁어 감)─▶ Prometheus :9090 ─┐
+node-exporter :9100 (서버 CPU·메모리·디스크) ┘                                      ├─▶ Grafana :3300
+Docker 컨테이너 로그 ─▶ Alloy :12345 ─(밀어 넣음)─▶ Loki :3100 ───────────────────────┘
+```
+
+| | 보관 | 메모리 상한 | 데이터 |
+|---|---|---|---|
+| Prometheus | 15일 또는 3GB | 400MB | `/opt/medinfo/monitoring-data/prometheus` |
+| Loki | 15일 | 384MB | `/opt/medinfo/monitoring-data/loki` |
+| Grafana | – | 256MB | `/opt/medinfo/monitoring-data/grafana` (계정·설정) |
+| Alloy, node-exporter | – | 256MB, 64MB | – |
+
+전부 `127.0.0.1`에만 열림 → 인터넷에서 안 보임. 보는 방법은 SSM 포트 포워딩뿐
+
+**Grafana 보기** (PowerShell, Session Manager 플러그인 필요)
+```
+aws ssm start-session --region ap-northeast-2 --target <app_instance_id> --document-name AWS-StartPortForwardingSession --parameters "portNumber=3300,localPortNumber=3300"
+```
+→ 브라우저 `http://localhost:3300` → 처음엔 `admin` / `admin` → 바로 새 비밀번호로 바꾸라고 나옴 → 대시보드 > 병원값 > **병원값 개요**
+
+- 대시보드는 저장소의 JSON(`deploy/monitoring/grafana/dashboards/`)에서 불러옴. 화면에서 고쳐도 저장 안 됨 → 바꿀 땐 JSON을 PR로
+- 알람 규칙: `deploy/monitoring/prometheus/alerts.yml` (지금은 Grafana·Prometheus 화면에서 상태만 보임. 메일 발송은 다음 단계)
+- 서버 자체가 죽으면 모니터링도 같이 죽음 → 그건 바깥의 CloudWatch(비용 차단기·예산, 다음 단계에 EC2 상태 검사·CloudFront 5xx 알람)가 맡음
+- 앱 지표 중 수집 작업 이름 태그(`job`)는 Prometheus의 `job`과 겹쳐 `exported_job`으로 바뀜
 
 ## 비용 안전장치 (`modules/cost-guard`)
 
