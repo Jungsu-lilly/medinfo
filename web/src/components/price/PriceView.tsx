@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 import type { PriceList as Prices, Region } from "@/lib/api";
 import { koreanDate, manwon, won } from "@/lib/format";
 import { noticeFor } from "@/lib/itemNotices";
+import PriceInsight from "./PriceInsight";
 import PriceList from "./PriceList";
 import RegionPicker from "./RegionPicker";
 import styles from "./price.module.css";
@@ -148,6 +149,13 @@ export default function PriceView({
           initialSort={sort}
           region={data.region ? { sido: data.region.sido, sggu: data.region.sggu } : null}
         />
+      )}
+
+      {stats.hospitalCount > 0 && (
+        <>
+          <div className="band" />
+          <PriceInsight data={data} where={regionLabel(data, area)} />
+        </>
       )}
 
       <SiteFooter>
